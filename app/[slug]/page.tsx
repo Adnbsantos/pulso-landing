@@ -1,17 +1,29 @@
 'use client';
 import { useParams } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import React from 'react';
 
 export default function LandingPage() {
   const params = useParams();
   const [enviado, setEnviado] = useState(false);
+  
+  // Estado para o nome vindo do AppSheet
+  const [nomeConvidante, setNomeConvidante] = useState("Carregando...");
 
-  // Lógica para transformar o slug (ex: pr-daniel-de-castro-1234) em um nome legível
-  // Removemos os últimos 5 caracteres (hífen + 4 dígitos do ID) e trocamos hífens por espaços
-  const slugRaw = (params?.slug as string) || "pr-daniel-de-castro-0000";
-  const nomeConvidante = slugRaw.length > 5 
-    ? slugRaw.substring(0, slugRaw.length - 5).replace(/-/g, ' ') 
-    : "Pr. Daniel de Castro";
+  // Busca o nome real na API quando o slug mudar
+  useEffect(() => {
+    const slug = params?.slug as string;
+    if (slug) {
+      fetch(`/api/convidado/${slug}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setNomeConvidante(data.nome || "Pr. Daniel de Castro");
+        })
+        .catch(() => {
+          setNomeConvidante("Pr. Daniel de Castro");
+        });
+    }
+  }, [params?.slug]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +38,7 @@ export default function LandingPage() {
       <h1>Geração de Daniel</h1>
       <p>Juntos por fé, família e propósito.</p>
 
-      {/* Caixa do Convidante */}
+      {/* Caixa do Convidante dinâmica */}
       <div style={{ backgroundColor: '#001f3f', color: '#fff', padding: '15px', borderRadius: '8px', margin: '20px 0' }}>
         <p style={{ margin: '0 0 5px 0' }}>Você foi convidado pelo</p>
         <h2 style={{ margin: '0' }}>{nomeConvidante.toUpperCase()}</h2>
