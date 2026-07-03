@@ -93,7 +93,7 @@ export async function POST(
     Instagram: instagram || "",
     UsuarioPai: dono.get("IDUsuario"),
     Status: "Ativo",
-    Perfil: "Convidado",
+    Perfil: "Mobilizador",
     NomeUsuarioPai: dono.get("Nome"),
     Slug: slugGerado,
     Link: `https://geracao.pulsodf.com.br/${slugGerado}`,
