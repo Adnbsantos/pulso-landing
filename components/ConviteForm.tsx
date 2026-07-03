@@ -65,6 +65,23 @@ export default function ConviteForm({
     setInstagram(value);
   }
 
+  function handleWhatsappChange(e: React.ChangeEvent<HTMLInputElement>) {
+    let value = e.target.value.replace(/\D/g, "");
+    value = value.slice(0, 11);
+
+    if (value.length > 10) {
+      value = value.replace(/^(\d{2})(\d{5})(\d{0,4})/, "($1) $2-$3");
+    } else if (value.length > 5) {
+      value = value.replace(/^(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3");
+    } else if (value.length > 2) {
+      value = value.replace(/^(\d{2})(\d{0,5})/, "($1) $2");
+    } else if (value.length > 0) {
+      value = value.replace(/^(\d{0,2})/, "($1");
+    }
+
+    setWhatsapp(value);
+  }
+
   function nomeValido(valor: string) {
     const palavras = valor.trim().split(/\s+/).filter(Boolean);
     return palavras.length >= 2;
@@ -148,9 +165,10 @@ export default function ConviteForm({
       <div className="relative mb-4">
         <input
           value={whatsapp}
-          onChange={(e) => setWhatsapp(e.target.value)}
+          onChange={handleWhatsappChange}
           placeholder="(61) 99999-9999"
           className="w-full border rounded-lg px-4 py-3 pr-12"
+          maxLength={15}
           required
         />
         <svg
