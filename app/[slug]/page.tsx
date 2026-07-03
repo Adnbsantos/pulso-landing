@@ -1,79 +1,98 @@
-'use client';
-import { useParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
-import React from 'react';
+import ConvitePageClient from "@/components/ConvitePageClient";
+import { getSheet } from "@/lib/sheets";
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 
-export default function LandingPage() {
-  const params = useParams();
-  const [enviado, setEnviado] = useState(false);
-  
-  // Estado para o nome vindo do AppSheet
-  const [nomeConvidante, setNomeConvidante] = useState("Carregando...");
+async function getDono(slug: string) {
+  const sheet = await getSheet();
+  const rows = await sheet.getRows();
+  const dono = rows.find((r) => r.get("Slug") === slug);
+  return dono ? { nome: dono.get("Nome") } : null;
+}
 
-  // Busca o nome real na API quando o slug mudar
-  useEffect(() => {
-    const slug = params?.slug as string;
-    if (slug) {
-      fetch(`/api/convidado/${slug}`)
-        .then((res) => res.json())
-        .then((data) => {
-          setNomeConvidante(data.nome || "Pr. Daniel de Castro");
-        })
-        .catch(() => {
-          setNomeConvidante("Pr. Daniel de Castro");
-        });
-    }
-  }, [params?.slug]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setEnviado(true);
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: "Gera\u00e7\u00e3o de Daniel",
+    description: "Juntos por f\u00e9, fam\u00edlia e prop\u00f3sito.",
+    openGraph: {
+      title: "Gera\u00e7\u00e3o de Daniel",
+      description: "Juntos por f\u00e9, fam\u00edlia e prop\u00f3sito.",
+      siteName: "app.pulsodf.com.br",
+      images: ["/favicon.png"],
+    },
   };
+}
+
+export default async function ConvitePage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const dono = await getDono(slug);
+
+  if (!dono) notFound();
 
   return (
-    <main style={{ maxWidth: '600px', margin: '0 auto', padding: '20px', fontFamily: 'Arial, sans-serif', textAlign: 'center' }}>
-      {/* Imagem do Daniel */}
-      <img src="/assets/Daniel - Caricatura.png" alt="Caricatura" style={{ width: '150px', borderRadius: '50%' }} />
-      
-      <h1>Geração de Daniel</h1>
-      <p>Juntos por fé, família e propósito.</p>
-
-      {/* Caixa do Convidante dinâmica */}
-      <div style={{ backgroundColor: '#001f3f', color: '#fff', padding: '15px', borderRadius: '8px', margin: '20px 0' }}>
-        <p style={{ margin: '0 0 5px 0' }}>Você foi convidado pelo</p>
-        <h2 style={{ margin: '0' }}>{nomeConvidante.toUpperCase()}</h2>
+    <main className="min-h-screen bg-blue-50 flex flex-col items-center justify-center px-4 py-10 text-center">
+      <div className="flex flex-col items-center justify-center w-full">
+        <div className="w-40 h-40 mb-6 flex items-center justify-center">
+          <img
+            src="/assets/Daniel - Caricatura.png"
+            alt="Pr. Daniel de Castro"
+            className="w-40 h-40 rounded-full border-4 border-blue-900 object-cover block"
+          />
+        </div>
+        <h1 className="text-5xl font-extrabold text-blue-950 text-center">
+          Gera&#231;&#227;o de Daniel
+        </h1>
+        <p className="text-blue-800 mt-3 text-center font-bold text-lg">Juntos por f&#233;, fam&#237;lia e prop&#243;sito.</p>
       </div>
 
-      {!enviado ? (
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px', textAlign: 'left' }}>
-          <label>Meu Nome Completo</label>
-          <input type="text" placeholder="Digite seu nome completo" required style={{ padding: '10px' }} />
-          
-          <label>Meu WhatsApp</label>
-          <input type="tel" placeholder="(61) 99999-9999" required style={{ padding: '10px' }} />
-          
-          <label>Meu Instagram</label>
-          <input type="text" placeholder="@seuinstagram" style={{ padding: '10px' }} />
-          
-          <button type="submit" style={{ padding: '15px', backgroundColor: '#FFD700', color: '#000', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>
-            Quero participar
-          </button>
-        </form>
-      ) : (
-        <div style={{ marginTop: '30px' }}>
-          <h2>Obrigado pelo seu cadastro!</h2>
-          <p>Se precisar de suporte, nossa Assessoria de Comunicação está pronta para ajudar.</p>
-          <p>WhatsApp: <strong>(61) 3199-1716</strong></p>
-          
-          <a href="https://wa.me/556131991716" target="_blank" rel="noopener noreferrer" style={{ display: 'block', margin: '15px 0', color: '#25D366', fontWeight: 'bold' }}>
-            Falar no WhatsApp da Assessoria
-          </a>
-          
-          <a href="LINK_DO_SEU_APP" style={{ display: 'inline-block', padding: '10px 20px', backgroundColor: '#333', color: '#fff', textDecoration: 'none', borderRadius: '5px' }}>
-            Acessar Meu App
-          </a>
+      <ConvitePageClient slug={slug} nomeConvidante={dono.nome} />
+
+      <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center w-full max-w-md mt-3 text-blue-900 font-bold">
+        <div className="flex items-center justify-center gap-1.5 px-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#1e3a8a" className="shrink-0">
+            <path d="M12 2 4 5v6c0 5 3.4 9.3 8 10.5 4.6-1.2 8-5.5 8-10.5V5l-8-3z" />
+            <path fill="white" d="M10.3 13.6 8.2 11.5l-1.1 1.1 3.2 3.2 6-6-1.1-1.1z" />
+          </svg>
+          <span className="leading-tight text-blue-900 text-left text-[10px]">
+            Seus dados
+            <br />
+            est&#227;o protegidos
+          </span>
         </div>
-      )}
+
+        <div className="w-px h-10 bg-blue-900 justify-self-center" />
+
+        <div className="flex items-center justify-center gap-1.5 px-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#1e3a8a" className="shrink-0">
+            <circle cx="9" cy="8" r="3" />
+            <path d="M3 19c0-3.3 2.7-5 6-5s6 1.7 6 5v1H3v-1z" />
+            <circle cx="17" cy="9" r="2.3" />
+            <path d="M15.5 13.2c2.6.3 4.5 1.7 4.5 4.3v1.5h-3v-1.5c0-1.6-.6-2.9-1.5-4.3z" />
+          </svg>
+          <span className="leading-tight text-blue-900 text-left text-[10px]">
+            Junte-se a
+            <br />
+            milhares de pessoas
+          </span>
+        </div>
+
+        <div className="w-px h-10 bg-blue-900 justify-self-center" />
+
+        <div className="flex items-center justify-center gap-1.5 px-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#1e3a8a" className="shrink-0">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+          <span className="leading-tight text-blue-900 text-left text-[10px]">
+            Fa&#231;a parte de
+            <br />
+            algo maior
+          </span>
+        </div>
+      </div>
     </main>
   );
 }
