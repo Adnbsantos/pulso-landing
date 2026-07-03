@@ -83,11 +83,12 @@ export async function POST(
   const novoId = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
   const slugGerado =
     nome.toLowerCase().trim().replace(/\s+/g, "-") + "-" + novoId.slice(-4);
+  const dataCadastro = new Date().toLocaleString("pt-BR");
 
-  // 6. Grava o novo cadastro na planilha
+  // 6. Grava o novo cadastro em UsuariosBackoffice
   await sheet.addRow({
     IDUsuario: novoId,
-    DataCadastro: new Date().toLocaleString("pt-BR"),
+    DataCadastro: dataCadastro,
     Nome: nome,
     Telefone: whatsapp,
     Instagram: instagram || "",
@@ -97,6 +98,22 @@ export async function POST(
     NomeUsuarioPai: dono.get("Nome"),
     Slug: slugGerado,
     Link: `https://geracao.pulsodf.com.br/${slugGerado}`,
+  });
+
+  // 7. Espelha os dados básicos em Banco Territorial DF,
+  //    ligando as duas tabelas pelo IDUsuarioOrigem
+  const territorialSheet = await getSheet("Banco Territorial DF");
+  const idTerritorial = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+
+  await territorialSheet.addRow({
+    ID: idTerritorial,
+    DataCadastro: dataCadastro,
+    Nome: nome,
+    Telefone: whatsapp,
+    Instagram: instagram || "",
+    IDUsuarioOrigem: novoId,
+    PerfilOrigem: "Mobilizador",
+    UsuarioPai: dono.get("IDUsuario"),
   });
 
   return NextResponse.json({ success: true, slug: slugGerado });

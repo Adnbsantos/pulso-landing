@@ -11,8 +11,8 @@ function getAuth() {
   });
 }
 
-export async function getSheet() {
+export async function getSheet(title: string = "UsuariosBackoffice") {
   const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID!, getAuth());
   await doc.loadInfo();
-  return doc.sheetsByTitle["UsuariosBackoffice"];
+  return doc.sheetsByTitle[title];
 }
