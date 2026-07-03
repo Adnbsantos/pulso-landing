@@ -32,7 +32,7 @@ export default function ConvitePageClient({
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
             <path d={iconePath} />
           </svg>
-          Fale conosco
+          Seja um Mobilizador
         </a>
       </div>
     );
