@@ -1,24 +1,28 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSheet } from "@/lib/sheets";
+﻿import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
+import { getSupabaseServer } from "@/lib/supabase";
+import { enviarWhatsApp } from "@/lib/evolutionApi";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
+  const supabase = getSupabaseServer();
 
-  const sheet = await getSheet();
-  const rows = await sheet.getRows();
-
-  const dono = rows.find((r) => r.get("Slug") === slug);
+  const { data: dono } = await supabase
+    .from("usuarios_backoffice")
+    .select("id_usuario, nome")
+    .eq("slug", slug)
+    .single();
 
   if (!dono) {
     return NextResponse.json({ error: "Convite não encontrado" }, { status: 404 });
   }
 
   return NextResponse.json({
-    nome: dono.get("Nome"),
-    idUsuario: dono.get("IDUsuario"),
+    nome: dono.nome,
+    idUsuario: dono.id_usuario,
   });
 }
 
@@ -26,95 +30,107 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const { slug } = await params;
-  const body = await req.json();
-  const { nome, whatsapp, instagram, turnstileToken } = body;
+  try {
+    const { slug } = await params;
+    const body = await req.json();
+    const { nome, whatsapp, instagram, turnstileToken } = body;
+    const supabase = getSupabaseServer();
 
-  // 1. Verifica se o token do Turnstile foi enviado
-  if (!turnstileToken) {
-    return NextResponse.json(
-      { error: "Verificação de segurança ausente" },
-      { status: 400 }
-    );
-  }
-
-  // 2. Valida o token junto à Cloudflare
-  const verify = await fetch(
-    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        secret: process.env.TURNSTILE_SECRET_KEY,
-        response: turnstileToken,
-      }),
+    if (!turnstileToken) {
+      return NextResponse.json(
+        { error: "Verificação de segurança ausente" },
+        { status: 400 }
+      );
     }
-  );
-  const verifyData = await verify.json();
 
-  if (!verifyData.success) {
+    const verify = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          secret: process.env.TURNSTILE_SECRET_KEY,
+          response: turnstileToken,
+        }),
+      }
+    );
+    const verifyData = await verify.json();
+
+    if (!verifyData.success) {
+      return NextResponse.json(
+        { error: "Falha na verificação de segurança" },
+        { status: 400 }
+      );
+    }
+
+    if (!nome || !whatsapp) {
+      return NextResponse.json(
+        { error: "Nome e WhatsApp são obrigatórios" },
+        { status: 400 }
+      );
+    }
+
+    const { data: dono } = await supabase
+      .from("usuarios_backoffice")
+      .select("id_usuario, nome, perfil")
+      .eq("slug", slug)
+      .single();
+
+    if (!dono) {
+      return NextResponse.json(
+        { error: "Convite não encontrado" },
+        { status: 404 }
+      );
+    }
+
+    const telefoneNumeros = String(whatsapp).replace(/\D/g, "");
+
+    const novoId = randomUUID().replace(/-/g, "").slice(0, 8);
+
+    const { error: erroBackoffice } = await supabase
+      .from("usuarios_backoffice")
+      .insert({
+        id_usuario: novoId,
+        nome,
+        telefone: telefoneNumeros,
+        instagram: instagram || null,
+        usuario_pai: dono.id_usuario,
+        nome_usuario_pai: dono.nome,
+        perfil: "Mobilizador",
+        status: "Pendente",
+      });
+
+    if (erroBackoffice) {
+      console.error("Erro ao criar usuarios_backoffice:", erroBackoffice);
+      return NextResponse.json(
+        { error: "Não foi possível criar o cadastro. Tente novamente." },
+        { status: 500 }
+      );
+    }
+
+    const { data: criado } = await supabase
+      .from("usuarios_backoffice")
+      .select("slug, link_fase2")
+      .eq("id_usuario", novoId)
+      .single();
+
+    if (criado?.link_fase2) {
+      const primeiroNome = nome.split(" ")[0];
+      enviarWhatsApp(
+        telefoneNumeros,
+        `Oi, ${primeiroNome}! Aqui é da Geração de Daniel 🙏\n\n` +
+          `Você já faz parte da nossa rede — falta só um passinho: contar ` +
+          `um pouco mais sobre você, pra gente conseguir direcionar as ações ` +
+          `certas pra perto de você.\n\nÉ rapidinho: ${criado.link_fase2}`
+      ).catch((err) => console.error("Falha ao enviar WhatsApp:", err));
+    }
+
+    return NextResponse.json({ success: true, slug: criado?.slug, idUsuario: novoId });
+  } catch (err) {
+    console.error("Erro inesperado no cadastro (POST /api/convidado/[slug]):", err);
     return NextResponse.json(
-      { error: "Falha na verificação de segurança" },
-      { status: 400 }
+      { error: "Erro interno. Tente novamente em instantes." },
+      { status: 500 }
     );
   }
-
-  // 3. Validação dos campos obrigatórios
-  if (!nome || !whatsapp) {
-    return NextResponse.json(
-      { error: "Nome e WhatsApp são obrigatórios" },
-      { status: 400 }
-    );
-  }
-
-  // 4. Busca o dono do slug (quem convidou)
-  const sheet = await getSheet();
-  const rows = await sheet.getRows();
-
-  const dono = rows.find((r) => r.get("Slug") === slug);
-  if (!dono) {
-    return NextResponse.json(
-      { error: "Convite não encontrado" },
-      { status: 404 }
-    );
-  }
-
-  // 5. Gera o novo ID e slug do convidado
-  const novoId = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
-  const slugGerado =
-    nome.toLowerCase().trim().replace(/\s+/g, "-") + "-" + novoId.slice(-4);
-  const dataCadastro = new Date().toLocaleString("pt-BR");
-
-  // 6. Grava o novo cadastro em UsuariosBackoffice
-  await sheet.addRow({
-    IDUsuario: novoId,
-    DataCadastro: dataCadastro,
-    Nome: nome,
-    Telefone: whatsapp,
-    Instagram: instagram || "",
-    UsuarioPai: dono.get("IDUsuario"),
-    Status: "Ativo",
-    Perfil: "Mobilizador",
-    NomeUsuarioPai: dono.get("Nome"),
-    Slug: slugGerado,
-    Link: `https://geracao.pulsodf.com.br/${slugGerado}`,
-  });
-
-  // 7. Espelha os dados básicos em Banco Territorial DF,
-  //    ligando as duas tabelas pelo IDUsuarioOrigem
-  const territorialSheet = await getSheet("Banco Territorial DF");
-  const idTerritorial = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
-
-  await territorialSheet.addRow({
-    ID: idTerritorial,
-    DataCadastro: dataCadastro,
-    Nome: nome,
-    Telefone: whatsapp,
-    Instagram: instagram || "",
-    IDUsuarioOrigem: novoId,
-    PerfilOrigem: "Mobilizador",
-    UsuarioPai: dono.get("IDUsuario"),
-  });
-
-  return NextResponse.json({ success: true, slug: slugGerado });
 }
