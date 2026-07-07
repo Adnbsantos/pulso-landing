@@ -1,13 +1,16 @@
 import ConvitePageClient from "@/components/ConvitePageClient";
-import { getSheet } from "@/lib/sheets";
+import { getSupabaseServer } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 async function getDono(slug: string) {
-  const sheet = await getSheet();
-  const rows = await sheet.getRows();
-  const dono = rows.find((r) => r.get("Slug") === slug);
-  return dono ? { nome: dono.get("Nome") } : null;
+  const supabase = getSupabaseServer();
+  const { data } = await supabase
+    .from("usuarios_backoffice")
+    .select("nome")
+    .eq("slug", slug)
+    .single();
+  return data ? { nome: data.nome } : null;
 }
 
 export async function generateMetadata(): Promise<Metadata> {

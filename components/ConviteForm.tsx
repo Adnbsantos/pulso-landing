@@ -13,7 +13,7 @@ export default function ConviteForm({
   onSuccess,
 }: {
   slug: string;
-  onSuccess: () => void;
+  onSuccess: (idUsuario: string) => void;
 }) {
   const [nome, setNome] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -122,7 +122,8 @@ export default function ConviteForm({
     setEnviando(false);
 
     if (res.ok) {
-      onSuccess();
+      const data = await res.json();
+      onSuccess(data.idUsuario);
     } else {
       const data = await res.json();
       setErro(data.error || "Erro ao enviar. Tente novamente.");
