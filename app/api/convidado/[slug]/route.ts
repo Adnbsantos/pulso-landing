@@ -102,8 +102,10 @@ export async function POST(
 
     if (erroBackoffice) {
       console.error("Erro ao criar usuarios_backoffice:", erroBackoffice);
+      // Temporariamente expõe a mensagem real do banco (em vez do texto
+      // genérico) pra facilitar o diagnóstico.
       return NextResponse.json(
-        { error: "Não foi possível criar o cadastro. Tente novamente." },
+        { error: erroBackoffice.message },
         { status: 500 }
       );
     }
