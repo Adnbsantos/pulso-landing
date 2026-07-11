@@ -1,3 +1,26 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseServer } from "@/lib/supabase";
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = getSupabaseServer();
+
+  const { data } = await supabase
+    .from("banco_territorial")
+    .select("nome, telefone, instagram, status")
+    .eq("id_usuario", id)
+    .single();
+
+  if (!data) {
+    return NextResponse.json({ error: "Cadastro não encontrado" }, { status: 404 });
+  }
+
+  return NextResponse.json(data);
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
