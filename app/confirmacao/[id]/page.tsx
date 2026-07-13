@@ -1,25 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Metadata } from 'next'
 
-// app/confirmacao/[id]/page.tsx
-//
-// Landing page de "Confirmar presenca" -- e pra onde vai a 2a mensagem
-// da convocacao (ver lib/convocacao.ts / notificar-convidados/route.ts
-// no repositorio pulso-crm: "Confirme sua presenca aqui\n[link]").
-// Segue a mesma linguagem visual da tela de sucesso do cadastro (fundo
-// azul claro, card branco, botao dourado).
-//
-// O botao nao confirma nada aqui dentro -- so linka pra rota que ja
-// existe e ja funciona no pulso-crm (GET /api/agenda/confirmar-presenca),
-// que e quem de fato grava confirmacao_presenca no banco. Essa pagina
-// aqui e so a "vitrine" bonita antes desse clique.
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function obterSupabaseAdmin() {
+  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+}
 
-// TODO: confirmar se e esse mesmo dominio -- e onde mora a rota que
-// grava a confirmacao de verdade.
 const URL_CRM = 'https://crm.pulsodf.com.br'
 
 type Convidado = {
@@ -28,7 +13,7 @@ type Convidado = {
 }
 
 async function buscarConvidado(id: string): Promise<Convidado | null> {
-  const { data } = await supabaseAdmin
+  const { data } = await obterSupabaseAdmin()
     .from('agenda_convidados')
     .select('evento_id, agenda_eventos(titulo, local, inicio)')
     .eq('id', id)
