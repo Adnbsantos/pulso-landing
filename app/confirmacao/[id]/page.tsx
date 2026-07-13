@@ -12,11 +12,11 @@ type Convidado = {
   agenda_eventos: { titulo: string; local: string | null; inicio: string } | null
 }
 
-async function buscarConvidado(id: string): Promise<Convidado | null> {
+async function buscarConvidado(codigo: string): Promise<Convidado | null> {
   const { data } = await obterSupabaseAdmin()
     .from('agenda_convidados')
     .select('evento_id, agenda_eventos(titulo, local, inicio)')
-    .eq('id', id)
+    .eq('codigo', codigo)
     .maybeSingle()
   return data as unknown as Convidado | null
 }
@@ -58,8 +58,8 @@ export default async function PaginaConfirmacao({
   const convidado = await buscarConvidado(id)
   const evento = convidado?.agenda_eventos
 
-  const linkConfirmar = `${URL_CRM}/api/agenda/confirmar-presenca?id=${id}&resposta=confirmado`
-  const linkAusente = `${URL_CRM}/api/agenda/confirmar-presenca?id=${id}&resposta=ausente`
+  const linkConfirmar = `${URL_CRM}/api/agenda/confirmar-presenca?codigo=${id}&resposta=confirmado`
+  const linkAusente = `${URL_CRM}/api/agenda/confirmar-presenca?codigo=${id}&resposta=ausente`
 
   return (
     <main
@@ -79,7 +79,7 @@ export default async function PaginaConfirmacao({
           alt="Pastor Daniel de Castro"
           width={110}
           height={110}
-          style={{ borderRadius: '50%', border: '4px solid #1B2559', marginBottom: 20 }}
+          style={{ display: 'block', margin: '0 auto 20px', borderRadius: '50%', border: '4px solid #1B2559' }}
         />
         <h1 style={{ color: '#1B2559', fontSize: 28, margin: '0 0 6px', fontWeight: 800 }}>
           Geração de Daniel
