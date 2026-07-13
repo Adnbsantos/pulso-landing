@@ -2,23 +2,9 @@ import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 
-// app/local/[eventoId]/page.tsx
-//
-// Pagina de redirecionamento com preview bonito pro link de localizacao
-// que vai nas mensagens de convocacao do WhatsApp (ver lib/convocacao.ts
-// no repositorio pulso-crm). O motivo de existir: um link direto do
-// Google Maps chega feio no WhatsApp (preview gigante, generico, sem
-// nossa marca) -- essa pagina tem metadados Open Graph proprios
-// (favicon/nome do projeto) e so redireciona pro Maps de verdade depois
-// que o preview ja foi gerado a partir de cima.
-//
-// Cliente Supabase proprio aqui (nao importa de lib/supabase existente)
-// pra nao depender de um export que eu nao pude conferir -- mesmo padrao
-// usado em lib/supabaseAdmin.ts do pulso-crm.
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function obterSupabaseAdmin() {
+  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+}
 
 type Evento = {
   titulo: string
@@ -27,7 +13,7 @@ type Evento = {
 }
 
 async function buscarEvento(eventoId: string): Promise<Evento | null> {
-  const { data } = await supabaseAdmin
+  const { data } = await obterSupabaseAdmin()
     .from('agenda_eventos')
     .select('titulo, local, link_localizacao')
     .eq('id', eventoId)
