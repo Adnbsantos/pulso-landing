@@ -77,8 +77,8 @@ export default async function PaginaConfirmacao({
         <img
           src="/favicon.png"
           alt="Pastor Daniel de Castro"
-          width={60}
-          height={60}
+          width={110}
+          height={110}
           style={{ display: 'block', margin: '0 auto 20px', borderRadius: '50%', border: '4px solid #1B2559' }}
         />
         <h1 style={{ color: '#1B2559', fontSize: 28, margin: '0 0 6px', fontWeight: 800 }}>
