@@ -40,11 +40,11 @@ export async function generateMetadata({
 
   return {
     title: titulo,
-    description: 'Geração de Daniel — confirme sua presença no evento.',
+    description: 'Geração de Daniel - Evento marcado',
     openGraph: {
       title: titulo,
-      description: 'Geração de Daniel — confirme sua presença no evento.',
-      images: ['/favicon.png'],
+      description: 'Geração de Daniel - Evento marcado',
+      images: ['/favicon-32.png'],
     },
   }
 }
