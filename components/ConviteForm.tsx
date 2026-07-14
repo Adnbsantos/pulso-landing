@@ -111,6 +111,12 @@ export default function ConviteForm({
       return;
     }
 
+    // Abre o WhatsApp AQUI (ainda dentro do clique de verdade do usuario,
+    // antes de qualquer await) -- se abrir depois do fetch, navegador
+    // mobile costuma bloquear o popup por nao ser mais "gesto direto do
+    // usuario". Roda concomitante com o envio do cadastro Fase1.
+    window.open("https://wa.me/556131991716?text=Habilitar", "_blank");
+
     setEnviando(true);
 
     const res = await fetch("/api/convidado/" + slug, {
