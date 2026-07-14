@@ -58,7 +58,7 @@ export default function ConviteForm({
   }, []);
 
   function handleInstagramChange(e: React.ChangeEvent<HTMLInputElement>) {
-    let value = e.target.value;
+    let value = e.target.value.toLowerCase();
     if (value.length > 0 && value.charAt(0) !== "@") {
       value = "@" + value;
     }
