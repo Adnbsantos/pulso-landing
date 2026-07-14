@@ -20,12 +20,10 @@ export default function ConvitePageClient({
           Faça parte dessa transformação.
         </p>
         <a
-          href="https://wa.me/556131991716?text=Habilitar"
-          target="_blank"
-          rel="noopener noreferrer"
+          href={`/maisvoce/${idUsuario}`}
           className="inline-flex items-center justify-center gap-2 w-full bg-yellow-500 hover:bg-yellow-600 text-blue-950 font-bold py-4 rounded-xl"
         >
-          Enviar mensagem no WhatsApp
+          Tornar um Mobilizador
         </a>
       </div>
     );
