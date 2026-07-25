@@ -234,8 +234,8 @@ export default function ConviteForm({
 
       {mostrarPolitica && (
         <div className="bg-gray-50 rounded-xl p-4 mb-4 text-sm text-gray-700">
-          Esses dados sao usados para a mobilizacao e a comunicacao do evento. Posso pedir a remocao a qualquer momento em{" "}
-          <a href="mailto:contato@pulsodf.com.br" className="underline font-semibold">contato@pulsodf.com.br</a>.
+          Esses dados são usados para a mobilização e comunicação de eventos. Posso solicitar a remoção a qualquer momento em{" "}
+          <a href="mailto:contato@pulsodf.com.br" className="underline font-semibold">contato@pulsodf.com.br</a>
         </div>
       )}
 
