@@ -115,7 +115,7 @@ export default function ConviteForm({
     // antes de qualquer await) -- se abrir depois do fetch, navegador
     // mobile costuma bloquear o popup por nao ser mais "gesto direto do
     // usuario". Roda concomitante com o envio do cadastro Fase1.
-    window.open("https://wa.me/556131991716?text=Habilitar", "_blank");
+    window.open("https://wa.me/556131991965?text=Habilitar", "_blank");
 
     setEnviando(true);
 
