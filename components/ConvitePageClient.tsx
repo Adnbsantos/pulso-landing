@@ -19,12 +19,17 @@ export default function ConvitePageClient({
         <p className="text-sm text-gray-600 mb-6">
           Faça parte dessa transformação.
         </p>
-        <a
-          href={`/maisvoce/${idUsuario}`}
-          className="inline-flex items-center justify-center gap-2 w-full bg-yellow-500 hover:bg-yellow-600 text-blue-950 font-bold py-4 rounded-xl"
+        {/* "Tornar um Mobilizador" (Fase 2) DESABILITADO por enquanto --
+            vamos lancar essa acao aos poucos (pedido em 01/08/2026). Pra
+            reativar, troca de volta o <span> abaixo por um <a
+            href={`/maisvoce/${idUsuario}`}>. */}
+        <span
+          aria-disabled="true"
+          title="Em breve"
+          className="inline-flex items-center justify-center gap-2 w-full bg-yellow-500/50 text-blue-950/50 font-bold py-4 rounded-xl cursor-not-allowed select-none"
         >
           Tornar um Mobilizador
-        </a>
+        </span>
       </div>
     );
   }
