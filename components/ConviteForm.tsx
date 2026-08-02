@@ -117,18 +117,46 @@ export default function ConviteForm({
       return;
     }
 
-    // Não abre mais o WhatsApp aqui pra pessoa mandar "Quero me
-    // habilitar" manualmente -- essa segunda etapa deixou de existir
-    // (pedido em 02/08/2026). O acesso ao app já é entregue direto,
-    // automaticamente, pela rota POST abaixo (ver enviarWhatsApp em
-    // app/api/convidado/[slug]/route.ts) -- sem precisar de interação
-    // com o bot, que segue desativado pra outros usos.
+    // Gera o ID AQUI, no navegador do cadastrante -- precisa existir
+    // antes do window.open() (que tem que rodar de forma sincrona,
+    // dentro do clique de verdade do usuario, senao o navegador mobile
+    // bloqueia o popup). O mesmo ID vai junto no POST logo abaixo, pra
+    // o banco usar exatamente esse valor (nao gerar outro diferente).
+    const idGerado = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+    const loginGerado = idGerado.slice(0, 4);
+    const telefoneDigitos = whatsapp.replace(/\D/g, "");
+    const primeiroNome = nome.trim().split(" ")[0];
+
+    const mensagemAcesso =
+      `${primeiroNome}, seu acesso está liberado.\n\n` +
+      `app.pulsodf.com.br\n` +
+      `Usuário: ${loginGerado}\n` +
+      `Senha: ${telefoneDigitos}\n\n` +
+      `Continue me falando um pouco de você\n` +
+      `https://geracao.pulsodf.com.br/maisvoce/${idGerado}`;
+
+    // Abre o WhatsApp do CADASTRANTE (nao o nosso) com a mensagem ja
+    // pronta pra ele mandar pro numero oficial (556131991940) -- ele
+    // que envia, nao o sistema. Isso tambem abre a conversa como
+    // iniciativa do usuario (P2P), reduzindo risco de filtro antispam
+    // (pedido em 02/08/2026).
+    window.open(
+      `https://wa.me/556131991940?text=${encodeURIComponent(mensagemAcesso)}`,
+      "_blank"
+    );
+
     setEnviando(true);
 
     const res = await fetch("/api/convidado/" + slug, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nome, whatsapp, instagram, turnstileToken }),
+      body: JSON.stringify({
+        nome,
+        whatsapp,
+        instagram,
+        turnstileToken,
+        idPreGerado: idGerado,
+      }),
     });
 
     setEnviando(false);

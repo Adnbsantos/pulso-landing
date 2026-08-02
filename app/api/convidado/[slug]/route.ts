@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getSupabaseServer } from "@/lib/supabase";
-import { enviarWhatsApp } from "@/lib/evolutionApi";
 
 // Link de "completar cadastro" (Fase 2 -- virar Mobilizador de verdade),
 // no formato /maisvoce/{id_usuario} -- mesmo padrão usado no botão
@@ -44,7 +43,7 @@ export async function POST(
   try {
     const { slug } = await params;
     const body = await req.json();
-    const { nome, whatsapp, instagram, turnstileToken } = body;
+    const { nome, whatsapp, instagram, turnstileToken, idPreGerado } = body;
     const supabase = getSupabaseServer();
 
     if (!turnstileToken) {
@@ -96,7 +95,14 @@ export async function POST(
 
     const telefoneNumeros = String(whatsapp).replace(/\D/g, "");
 
-    const novoId = randomUUID().replace(/-/g, "").slice(0, 8);
+    // Usa o ID gerado no NAVEGADOR do cadastrante, se vier valido --
+    // precisa bater exatamente com o que foi usado na mensagem que ele
+    // já mandou por WhatsApp (login/senha/link). So aceita formato
+    // hexadecimal de 8 caracteres (mesmo padrao do randomUUID().slice),
+    // pra nao aceitar qualquer string arbitraria vinda do cliente.
+    // Se nao vier nada valido, gera aqui mesmo (fallback de seguranca).
+    const idValido = typeof idPreGerado === "string" && /^[a-f0-9]{8}$/i.test(idPreGerado);
+    const novoId = idValido ? idPreGerado : randomUUID().replace(/-/g, "").slice(0, 8);
 
     // Cadastro Fase 1 (só nome + whatsapp) entra sempre como "Apoiador" e
     // status "Pendente" -- só vira "Mobilizador Ativo" de fato quando (e
@@ -132,21 +138,11 @@ export async function POST(
       .eq("id_usuario", novoId)
       .single();
 
-    const login = novoId.slice(0, 4);
-    // Envia explicitamente pela instancia "pulso-crm-3" (numero
-    // 556131991940) -- e o mesmo numero que o botao "Quero participar"
-    // ja aponta, entao a pessoa recebe tudo de um numero so, coerente
-    // (pedido em 02/08/2026).
-    enviarWhatsApp(
-      telefoneNumeros,
-      `Seu acesso está liberado.\n\n` +
-        `*app.pulsodf.com.br*\n` +
-        `Usuário: ${login}\n` +
-        `Senha: ${telefoneNumeros}\n\n` +
-        `Continue me falando um pouco de você\n` +
-        `${linkMaisVoce(novoId)}`,
-      "pulso-crm-3"
-    ).catch((err) => console.error("Falha ao enviar WhatsApp:", err));
+    // Não manda mais WhatsApp automático por aqui -- o cadastrante
+    // envia a mensagem ele mesmo, pelo próprio WhatsApp (ver
+    // ConviteForm.tsx), usando o MESMO id_usuario gerado no navegador
+    // dele. Isso também abre a conversa como iniciativa do usuário
+    // (P2P), não da empresa -- reduz risco de filtro antispam.
 
     return NextResponse.json({ success: true, slug: criado?.slug, idUsuario: novoId });
   } catch (err) {
