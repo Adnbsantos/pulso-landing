@@ -132,13 +132,15 @@ export async function POST(
       .eq("id_usuario", novoId)
       .single();
 
-    const primeiroNome = nome.split(" ")[0];
+    const login = novoId.slice(0, 4);
     enviarWhatsApp(
       telefoneNumeros,
-      `Oi, ${primeiroNome}! Aqui é da Geração de Daniel 🙏\n\n` +
-        `Você já faz parte da nossa rede — falta só um passinho: contar ` +
-        `um pouco mais sobre você, pra gente conseguir direcionar as ações ` +
-        `certas pra perto de você.\n\nÉ rapidinho: ${linkMaisVoce(novoId)}`
+      `Seu acesso está liberado.\n` +
+        `*app.pulsodf.com.br*\n` +
+        `Usuário: ${login}\n` +
+        `Senha: ${telefoneNumeros}\n\n` +
+        `Continue me falando um pouco de você\n` +
+        `${linkMaisVoce(novoId)}`
     ).catch((err) => console.error("Falha ao enviar WhatsApp:", err));
 
     return NextResponse.json({ success: true, slug: criado?.slug, idUsuario: novoId });
