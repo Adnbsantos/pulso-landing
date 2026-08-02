@@ -133,6 +133,10 @@ export async function POST(
       .single();
 
     const login = novoId.slice(0, 4);
+    // Envia explicitamente pela instancia "pulso-crm-3" (numero
+    // 556131991940) -- e o mesmo numero que o botao "Quero participar"
+    // ja aponta, entao a pessoa recebe tudo de um numero so, coerente
+    // (pedido em 02/08/2026).
     enviarWhatsApp(
       telefoneNumeros,
       `Seu acesso está liberado.\n\n` +
@@ -140,7 +144,8 @@ export async function POST(
         `Usuário: ${login}\n` +
         `Senha: ${telefoneNumeros}\n\n` +
         `Continue me falando um pouco de você\n` +
-        `${linkMaisVoce(novoId)}`
+        `${linkMaisVoce(novoId)}`,
+      "pulso-crm-3"
     ).catch((err) => console.error("Falha ao enviar WhatsApp:", err));
 
     return NextResponse.json({ success: true, slug: criado?.slug, idUsuario: novoId });

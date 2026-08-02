@@ -23,23 +23,12 @@ export default function ConviteForm({
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
   const [turnstileToken, setTurnstileToken] = useState("");
-  // Numero do carrossel de atendentes -- buscado assim que a pagina
-  // carrega (nao no clique), pra nao atrasar o window.open() do envio
-  // e correr risco do navegador bloquear o popup por nao ser mais
-  // "gesto direto do usuario". Fallback pro numero original enquanto
-  // ainda esta carregando ou se a chamada falhar.
-  const [numeroAtendente, setNumeroAtendente] = useState("556131991716");
-
-  useEffect(() => {
-    fetch("/api/proximo-numero")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.numero) setNumeroAtendente(data.numero);
-      })
-      .catch(() => {
-        // Mantem o fallback -- nao trava o formulario por causa disso.
-      });
-  }, []);
+  // O carrossel de rodizio de numeros (/api/proximo-numero) nao e mais
+  // usado aqui -- desde que o WhatsApp deixou de ser aberto no clique
+  // (o acesso e' entregue automaticamente via backend, ver
+  // app/api/convidado/[slug]/route.ts). O endpoint continua existindo
+  // no repositorio, caso volte a fazer sentido usar mais de um numero
+  // pra esse fluxo especifico no futuro.
 
   const turnstileRef = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
@@ -128,16 +117,12 @@ export default function ConviteForm({
       return;
     }
 
-    // Abre o WhatsApp AQUI (ainda dentro do clique de verdade do usuario,
-    // antes de qualquer await) -- se abrir depois do fetch, navegador
-    // mobile costuma bloquear o popup por nao ser mais "gesto direto do
-    // usuario". Roda concomitante com o envio do cadastro Fase1.
-    // FIXO temporariamente em 556131991940 enquanto o rodizio
-    // multi-numero ainda esta em teste (pedido em 02/08/2026) -- pra
-    // voltar ao carrossel dinamico, troca de volta pra
-    // `https://wa.me/${numeroAtendente}?...`.
-    window.open(`https://wa.me/556131991940?text=Quero%20me%20habilitar`, "_blank");
-
+    // Não abre mais o WhatsApp aqui pra pessoa mandar "Quero me
+    // habilitar" manualmente -- essa segunda etapa deixou de existir
+    // (pedido em 02/08/2026). O acesso ao app já é entregue direto,
+    // automaticamente, pela rota POST abaixo (ver enviarWhatsApp em
+    // app/api/convidado/[slug]/route.ts) -- sem precisar de interação
+    // com o bot, que segue desativado pra outros usos.
     setEnviando(true);
 
     const res = await fetch("/api/convidado/" + slug, {

@@ -7,10 +7,14 @@
 //   EVOLUTION_INSTANCE=nome-da-instancia   (o "nome" que você deu ao
 //     conectar o WhatsApp via QR Code no painel da Evolution API)
 
-export async function enviarWhatsApp(telefone: string, mensagem: string): Promise<boolean> {
+export async function enviarWhatsApp(
+  telefone: string,
+  mensagem: string,
+  instanciaOverride?: string
+): Promise<boolean> {
   const url = process.env.EVOLUTION_API_URL
   const apiKey = process.env.EVOLUTION_API_KEY
-  const instancia = process.env.EVOLUTION_INSTANCE
+  const instancia = instanciaOverride ?? process.env.EVOLUTION_INSTANCE
 
   if (!url || !apiKey || !instancia) {
     console.error(
