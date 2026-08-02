@@ -135,7 +135,7 @@ export async function POST(
     const login = novoId.slice(0, 4);
     enviarWhatsApp(
       telefoneNumeros,
-      `Seu acesso está liberado.\n` +
+      `Seu acesso está liberado.\n\n` +
         `*app.pulsodf.com.br*\n` +
         `Usuário: ${login}\n` +
         `Senha: ${telefoneNumeros}\n\n` +
