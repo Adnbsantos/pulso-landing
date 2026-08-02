@@ -23,6 +23,23 @@ export default function ConviteForm({
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
   const [turnstileToken, setTurnstileToken] = useState("");
+  // Numero do carrossel de atendentes -- buscado assim que a pagina
+  // carrega (nao no clique), pra nao atrasar o window.open() do envio
+  // e correr risco do navegador bloquear o popup por nao ser mais
+  // "gesto direto do usuario". Fallback pro numero original enquanto
+  // ainda esta carregando ou se a chamada falhar.
+  const [numeroAtendente, setNumeroAtendente] = useState("556131991716");
+
+  useEffect(() => {
+    fetch("/api/proximo-numero")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.numero) setNumeroAtendente(data.numero);
+      })
+      .catch(() => {
+        // Mantem o fallback -- nao trava o formulario por causa disso.
+      });
+  }, []);
 
   const turnstileRef = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
@@ -115,7 +132,7 @@ export default function ConviteForm({
     // antes de qualquer await) -- se abrir depois do fetch, navegador
     // mobile costuma bloquear o popup por nao ser mais "gesto direto do
     // usuario". Roda concomitante com o envio do cadastro Fase1.
-    window.open("https://wa.me/556131991940?text=Quero%20me%20habilitar", "_blank");
+    window.open(`https://wa.me/${numeroAtendente}?text=Quero%20me%20habilitar`, "_blank");
 
     setEnviando(true);
 
