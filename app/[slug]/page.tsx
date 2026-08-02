@@ -21,6 +21,13 @@ export async function generateMetadata(): Promise<Metadata> {
       title: "Gera\u00e7\u00e3o de Daniel",
       description: "Juntos por f\u00e9, fam\u00edlia e prop\u00f3sito.",
       siteName: "app.pulsodf.com.br",
+      images: [],
+    },
+    twitter: {
+      card: "summary",
+      title: "Gera\u00e7\u00e3o de Daniel",
+      description: "Juntos por f\u00e9, fam\u00edlia e prop\u00f3sito.",
+      images: [],
     },
   };
 }
