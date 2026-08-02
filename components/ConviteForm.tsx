@@ -132,7 +132,11 @@ export default function ConviteForm({
     // antes de qualquer await) -- se abrir depois do fetch, navegador
     // mobile costuma bloquear o popup por nao ser mais "gesto direto do
     // usuario". Roda concomitante com o envio do cadastro Fase1.
-    window.open(`https://wa.me/${numeroAtendente}?text=Quero%20me%20habilitar`, "_blank");
+    // FIXO temporariamente em 556131991940 enquanto o rodizio
+    // multi-numero ainda esta em teste (pedido em 02/08/2026) -- pra
+    // voltar ao carrossel dinamico, troca de volta pra
+    // `https://wa.me/${numeroAtendente}?...`.
+    window.open(`https://wa.me/556131991940?text=Quero%20me%20habilitar`, "_blank");
 
     setEnviando(true);
 
