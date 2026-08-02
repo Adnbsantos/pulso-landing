@@ -5,6 +5,25 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Complete seu cadastro — Geração de Daniel",
+  // Sobrescreve por completo o openGraph/twitter herdados do layout raiz
+  // (que tem imagem grande + descrição chamativa) -- esse link é
+  // mandado pessoa a pessoa via WhatsApp, junto com login/senha, então
+  // não faz sentido nenhum preview rico aqui. Sem "images", o WhatsApp
+  // mostra o card mais discreto possível (não dá pra eliminar o preview
+  // por completo -- isso é configuração do aparelho de quem envia -- mas
+  // dá pra controlar o que aparece nele, que é essa parte aqui).
+  description: undefined,
+  openGraph: {
+    title: "Complete seu cadastro — Geração de Daniel",
+    description: undefined,
+    images: [],
+  },
+  twitter: {
+    card: "summary",
+    title: "Complete seu cadastro — Geração de Daniel",
+    description: undefined,
+    images: [],
+  },
 };
 
 export default async function CompletarCadastroPage({
