@@ -153,4 +153,3 @@ export async function POST(
     );
   }
 }
-// touch: forcar novo trigger de deploy no Vercel -- 2026-08-02T16:27:05Z
