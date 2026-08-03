@@ -95,6 +95,27 @@ export async function POST(
 
     const telefoneNumeros = String(whatsapp).replace(/\D/g, "");
 
+    // Checagem de duplicidade -- SEMPRE no servidor, mesmo que o
+    // navegador já tenha checado antes (defesa em profundidade: o
+    // navegador pode ter pulado essa etapa, ou o telefone pode ter
+    // sido cadastrado por outra aba entre a checagem e o envio). Se já
+    // existe, reaproveita o cadastro existente -- não cria linha
+    // duplicada, não gera ID novo. Pedido em 03/08/2026.
+    const { data: existente } = await supabase
+      .from("usuarios_backoffice")
+      .select("id_usuario, slug")
+      .eq("telefone", telefoneNumeros)
+      .maybeSingle();
+
+    if (existente) {
+      return NextResponse.json({
+        success: true,
+        slug: existente.slug,
+        idUsuario: existente.id_usuario,
+        jaExistia: true,
+      });
+    }
+
     // Usa o ID gerado no NAVEGADOR do cadastrante, se vier valido --
     // precisa bater exatamente com o que foi usado na mensagem que ele
     // já mandou por WhatsApp (login/senha/link). So aceita formato

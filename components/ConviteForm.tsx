@@ -23,6 +23,13 @@ export default function ConviteForm({
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
   const [turnstileToken, setTurnstileToken] = useState("");
+  // Se o telefone digitado já tem cadastro, guarda o ID REAL aqui --
+  // usado tanto na mensagem do WhatsApp quanto no envio, em vez de um
+  // ID novo inventado. Checado no onBlur do campo (ver
+  // verificarCadastroExistente abaixo). Servidor faz a MESMA checagem
+  // de novo antes de gravar (essa aqui é só pra mensagem nascer certa,
+  // a de verdade é a do servidor) -- pedido em 03/08/2026.
+  const [idExistente, setIdExistente] = useState<string | null>(null);
   // O carrossel de rodizio de numeros (/api/proximo-numero) nao e mais
   // usado aqui -- desde que o WhatsApp deixou de ser aberto no clique
   // (o acesso e' entregue automaticamente via backend, ver
@@ -86,6 +93,29 @@ export default function ConviteForm({
     }
 
     setWhatsapp(value);
+    // Numero mudou -- o resultado da checagem anterior nao vale mais.
+    setIdExistente(null);
+  }
+
+  // Assim que a pessoa termina de digitar o telefone (onBlur), checa
+  // se ele já tem cadastro -- se tiver, guarda o ID real em
+  // idExistente, pra mensagem do WhatsApp nascer com o login/senha
+  // CORRETOS dela, em vez de inventar um cadastro novo. Silencioso se
+  // falhar (não trava o formulário por causa disso -- o servidor faz a
+  // checagem de verdade de qualquer forma).
+  async function verificarCadastroExistente() {
+    const digitos = whatsapp.replace(/\D/g, "");
+    if (digitos.length < 10) return;
+
+    try {
+      const res = await fetch(`/api/verificar-cadastro?telefone=${digitos}`);
+      const dados = await res.json();
+      if (dados?.existe && dados?.idUsuario) {
+        setIdExistente(dados.idUsuario);
+      }
+    } catch {
+      // Silencioso -- servidor confere de novo no envio de qualquer forma.
+    }
   }
 
   function nomeValido(valor: string) {
@@ -117,23 +147,25 @@ export default function ConviteForm({
       return;
     }
 
-    // Gera o ID AQUI, no navegador do cadastrante -- precisa existir
-    // antes do window.open() (que tem que rodar de forma sincrona,
-    // dentro do clique de verdade do usuario, senao o navegador mobile
-    // bloqueia o popup). O mesmo ID vai junto no POST logo abaixo, pra
-    // o banco usar exatamente esse valor (nao gerar outro diferente).
-    const idGerado = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
-    const loginGerado = idGerado.slice(0, 4);
+    // Se a pessoa JA tem cadastro (checado no onBlur do telefone,
+    // idExistente), usa o ID REAL dela -- senao gera um novo aqui, no
+    // navegador, antes do window.open() (que tem que rodar de forma
+    // sincrona, dentro do clique de verdade do usuario, senao o
+    // navegador mobile bloqueia o popup). O mesmo ID vai junto no POST
+    // logo abaixo -- se ja existia, o servidor confere de novo e nao
+    // cria linha duplicada (pedido em 03/08/2026).
+    const idParaUsar = idExistente ?? crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+    const loginGerado = idParaUsar.slice(0, 4);
     const telefoneDigitos = whatsapp.replace(/\D/g, "");
     const primeiroNome = nome.trim().split(" ")[0];
 
     const mensagemAcesso =
-      `${primeiroNome}, seu acesso está liberado.\n\n` +
+      `${primeiroNome}, bem-vindo ao time do Pastor Daniel de Castro. Seu acesso está liberado.\n\n` +
       `app.pulsodf.com.br\n` +
       `Usuário: ${loginGerado}\n` +
       `Senha: ${telefoneDigitos}\n\n` +
       `Continue me falando um pouco de você\n` +
-      `https://geracao.pulsodf.com.br/maisvoce/${idGerado}`;
+      `https://geracao.pulsodf.com.br/maisvoce/${idParaUsar}`;
 
     // FIXO temporariamente em 556131991965 enquanto o rodizio
     // multi-numero ainda esta em teste -- pra voltar ao carrossel
@@ -153,7 +185,7 @@ export default function ConviteForm({
         whatsapp,
         instagram,
         turnstileToken,
-        idPreGerado: idGerado,
+        idPreGerado: idParaUsar,
       }),
     });
 
@@ -205,6 +237,7 @@ export default function ConviteForm({
         <input
           value={whatsapp}
           onChange={handleWhatsappChange}
+          onBlur={verificarCadastroExistente}
           placeholder="(61) 99999-9999"
           className="w-full border rounded-lg px-4 py-3 pr-12"
           maxLength={15}
