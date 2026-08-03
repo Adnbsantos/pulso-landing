@@ -135,13 +135,11 @@ export default function ConviteForm({
       `Continue me falando um pouco de você\n` +
       `https://geracao.pulsodf.com.br/maisvoce/${idGerado}`;
 
-    // Abre o WhatsApp do CADASTRANTE (nao o nosso) com a mensagem ja
-    // pronta pra ele mandar pro numero oficial (556131991940) -- ele
-    // que envia, nao o sistema. Isso tambem abre a conversa como
-    // iniciativa do usuario (P2P), reduzindo risco de filtro antispam
-    // (pedido em 02/08/2026).
+    // FIXO temporariamente em 556131991965 enquanto o rodizio
+    // multi-numero ainda esta em teste -- pra voltar ao carrossel
+    // dinamico, troca de volta pra `https://wa.me/${numeroAtendente}?...`.
     window.open(
-      `https://wa.me/556131991940?text=${encodeURIComponent(mensagemAcesso)}`,
+      `https://wa.me/556131991965?text=${encodeURIComponent(mensagemAcesso)}`,
       "_blank"
     );
 
