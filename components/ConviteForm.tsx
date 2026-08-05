@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { capturarLocalizacao } from "@/lib/geolocalizacao";
 
 declare global {
   interface Window {
@@ -177,6 +178,13 @@ export default function ConviteForm({
 
     setEnviando(true);
 
+    // Captura o GPS AQUI, na Fase 1 -- pedido em 04/08/2026, pra a RA
+    // já nascer real (por localização), em vez de depender só da
+    // pessoa escolher certo na Fase 2. Silencioso se ela negar
+    // permissão ou o dispositivo não suportar -- nunca trava o
+    // cadastro por causa disso.
+    const localizacao = await capturarLocalizacao();
+
     const res = await fetch("/api/convidado/" + slug, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -186,6 +194,8 @@ export default function ConviteForm({
         instagram,
         turnstileToken,
         idPreGerado: idParaUsar,
+        latitude: localizacao?.latitude ?? null,
+        longitude: localizacao?.longitude ?? null,
       }),
     });
 

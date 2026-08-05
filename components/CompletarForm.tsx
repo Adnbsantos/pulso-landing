@@ -11,7 +11,7 @@ import {
 
 type RA = { id: number; nome: string };
 type Bairro = { id: number; nome: string; ra_id: number };
-type Pessoa = { nome: string; telefone: string; instagram: string | null; status: string };
+type Pessoa = { nome: string; telefone: string; instagram: string | null; status: string; ra_id: number | null };
 
 // Heurística simples: nomes terminados em "a" geralmente são femininos em
 // português, com algumas exceções conhecidas. Não é infalível, mas cobre
@@ -40,7 +40,11 @@ export default function CompletarForm({
 
   const [form, setForm] = useState({
     instagram: pessoa.instagram ?? "",
-    raId: "",
+    // Pré-preenchida se a RA já foi detectada por GPS na Fase 1
+    // (pedido em 04/08/2026) -- essa tela vira uma confirmação/
+    // auditoria do dado real, não mais a primeira definição. A pessoa
+    // ainda pode trocar se a detecção tiver errado.
+    raId: pessoa.ra_id != null ? String(pessoa.ra_id) : "",
     bairroId: "",
     possuiIgreja: "" as "" | "Sim" | "Não",
     nomeIgreja: "",
@@ -163,6 +167,11 @@ export default function CompletarForm({
             <option key={ra.id} value={ra.id}>{ra.nome}</option>
           ))}
         </select>
+        {pessoa.ra_id != null && (
+          <p className="text-xs text-gray-500 mt-1">
+            Detectamos essa região pela sua localização no cadastro. Corrija se não estiver certa.
+          </p>
+        )}
       </Campo>
 
       <Campo label="Bairro">

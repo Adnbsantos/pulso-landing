@@ -36,7 +36,7 @@ export default async function CompletarCadastroPage({
 
   const { data: pessoa } = await supabase
     .from("banco_territorial")
-    .select("nome, telefone, instagram, status")
+    .select("nome, telefone, instagram, status, ra_id")
     .eq("id_usuario", id)
     .single();
 

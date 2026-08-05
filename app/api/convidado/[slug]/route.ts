@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getSupabaseServer } from "@/lib/supabase";
+import { raMaisProxima } from "@/lib/geolocalizacao";
 
 // Link de "completar cadastro" (Fase 2 -- virar Mobilizador de verdade),
 // no formato /maisvoce/{id_usuario} -- mesmo padrão usado no botão
@@ -43,7 +44,7 @@ export async function POST(
   try {
     const { slug } = await params;
     const body = await req.json();
-    const { nome, whatsapp, instagram, turnstileToken, idPreGerado } = body;
+    const { nome, whatsapp, instagram, turnstileToken, idPreGerado, latitude, longitude } = body;
     const supabase = getSupabaseServer();
 
     if (!turnstileToken) {
@@ -125,6 +126,15 @@ export async function POST(
     const idValido = typeof idPreGerado === "string" && /^[a-f0-9]{8}$/i.test(idPreGerado);
     const novoId = idValido ? idPreGerado : randomUUID().replace(/-/g, "").slice(0, 8);
 
+    // Se veio GPS da Fase 1, calcula a RA mais próxima ANTES de
+    // inserir -- já entra certo no primeiro insert, propaga sozinho
+    // pra banco_territorial via o gatilho de sincronização. É uma
+    // aproximação por centro de RA (não fronteira real), então serve
+    // como o dado "real" inicial, mas a pessoa ainda pode corrigir na
+    // Fase 2 -- auditoria, não trava (pedido em 04/08/2026).
+    const temGps = typeof latitude === "number" && typeof longitude === "number";
+    const raIdDetectada = temGps ? await raMaisProxima(latitude, longitude) : null;
+
     // Cadastro Fase 1 (só nome + whatsapp) entra sempre como "Apoiador" e
     // status "Pendente" -- só vira "Mobilizador Ativo" de fato quando (e
     // se) completar a Fase 2 pelo link abaixo. Isso evita o cadastro
@@ -141,6 +151,7 @@ export async function POST(
         nome_usuario_pai: dono.nome,
         perfil: "Apoiador Base",
         status: "Pendente",
+        ra_id: raIdDetectada,
       });
 
     if (erroBackoffice) {
@@ -151,6 +162,18 @@ export async function POST(
         { error: erroBackoffice.message },
         { status: 500 }
       );
+    }
+
+    // Grava a coordenada bruta direto em banco_territorial -- o
+    // gatilho de sincronização não mexe em latitude/longitude (só
+    // existem nessa tabela, não em usuarios_backoffice), então precisa
+    // dessa atualização separada, depois que o insert acima já criou a
+    // linha via gatilho.
+    if (temGps) {
+      await supabase
+        .from("banco_territorial")
+        .update({ latitude, longitude })
+        .eq("id_usuario", novoId);
     }
 
     const { data: criado } = await supabase
