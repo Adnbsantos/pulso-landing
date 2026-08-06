@@ -132,8 +132,24 @@ export async function POST(
     // aproximação por centro de RA (não fronteira real), então serve
     // como o dado "real" inicial, mas a pessoa ainda pode corrigir na
     // Fase 2 -- auditoria, não trava (pedido em 04/08/2026).
+    //
+    // CRÍTICO: isolado no próprio try/catch, de propósito -- essa é
+    // uma funcionalidade EXTRA (detecção automática), não pode nunca
+    // derrubar o cadastro principal se algo der errado aqui. Achado em
+    // 06/08/2026: um cadastro sumiu por completo (nem chegou a ser
+    // criado, mas a pessoa já tinha recebido o link quebrado por
+    // WhatsApp) -- provável causa raiz era essa chamada sem proteção
+    // própria, dentro do mesmo bloco que travava tudo se lançasse
+    // exceção.
     const temGps = typeof latitude === "number" && typeof longitude === "number";
-    const raIdDetectada = temGps ? await raMaisProxima(latitude, longitude) : null;
+    let raIdDetectada: number | null = null;
+    if (temGps) {
+      try {
+        raIdDetectada = await raMaisProxima(latitude, longitude);
+      } catch (erroGps) {
+        console.error("Falha ao detectar RA por GPS (não bloqueante):", erroGps);
+      }
+    }
 
     // Cadastro Fase 1 (só nome + whatsapp) entra sempre como "Apoiador" e
     // status "Pendente" -- só vira "Mobilizador Ativo" de fato quando (e
@@ -168,12 +184,17 @@ export async function POST(
     // gatilho de sincronização não mexe em latitude/longitude (só
     // existem nessa tabela, não em usuarios_backoffice), então precisa
     // dessa atualização separada, depois que o insert acima já criou a
-    // linha via gatilho.
+    // linha via gatilho. Também isolada -- se falhar, o cadastro já
+    // criado continua valendo, só sem a coordenada.
     if (temGps) {
-      await supabase
-        .from("banco_territorial")
-        .update({ latitude, longitude })
-        .eq("id_usuario", novoId);
+      try {
+        await supabase
+          .from("banco_territorial")
+          .update({ latitude, longitude })
+          .eq("id_usuario", novoId);
+      } catch (erroCoordenada) {
+        console.error("Falha ao gravar coordenada (não bloqueante):", erroCoordenada);
+      }
     }
 
     const { data: criado } = await supabase
