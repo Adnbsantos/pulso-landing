@@ -336,9 +336,21 @@ export default function ConviteForm({
           terminar (pedido em 06/08/2026). */}
       <div ref={turnstileRef} className="hidden" />
       <div className="mb-4 flex justify-center">
-        <div className="flex items-center gap-3 border border-gray-300 rounded-md px-4 py-3 bg-gray-50 w-[300px]">
-          <div className="w-5 h-5 border-2 border-gray-400 rounded-sm flex-shrink-0" />
-          <span className="text-sm text-gray-600">Verificação de segurança</span>
+        <div className="flex items-center justify-between gap-3 border border-gray-300 rounded-md px-4 py-3 bg-gray-50 w-[300px]">
+          <div className="flex items-center gap-3">
+            <div className="w-5 h-5 bg-blue-600 rounded-sm flex-shrink-0 flex items-center justify-center">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            </div>
+            <span className="text-sm text-gray-600">Verificação de segurança</span>
+          </div>
+          <div className="flex items-center gap-1 text-gray-400">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.5 15.5H6a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 16.2 6.13 4.5 4.5 0 0 1 18.5 15.5Z" />
+            </svg>
+            <span className="text-[10px] font-medium tracking-wide">CLOUDFLARE</span>
+          </div>
         </div>
       </div>
 
