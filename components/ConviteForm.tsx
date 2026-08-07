@@ -55,6 +55,13 @@ export default function ConviteForm({
       if (window.turnstile && turnstileRef.current && !widgetId.current) {
         widgetId.current = window.turnstile.render(turnstileRef.current, {
           sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+          // "interaction-only" -- o widget fica invisível pra quem
+          // passa direto (a maioria), só aparece se a Cloudflare
+          // realmente precisar de uma verificação interativa. Evita a
+          // confusão de "Sucesso!" aparecer do lado do botão de
+          // enviar, fazendo a pessoa achar que já cadastrou (pedido em
+          // 06/08/2026).
+          appearance: "interaction-only",
           callback: (token: string) => setTurnstileToken(token),
           "expired-callback": () => setTurnstileToken(""),
         });
