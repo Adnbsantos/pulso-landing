@@ -114,23 +114,29 @@ export default function ConviteForm({
 
   // Assim que a pessoa termina de digitar o telefone (onBlur), checa
   // se ele já tem cadastro -- se tiver, guarda o ID real em
-  // idExistente, pra mensagem do WhatsApp nascer com o login/senha
-  // CORRETOS dela, em vez de inventar um cadastro novo. Silencioso se
-  // falhar (não trava o formulário por causa disso -- o servidor faz a
-  // checagem de verdade de qualquer forma).
+  // Consulta se o telefone JA tem cadastro -- retorna o ID real se
+  // achar, ou null. Usada tanto no onBlur (só pra dar um "empurrão"
+  // antecipado, atualiza idExistente) quanto, de forma DEFINITIVA e
+  // fresca, dentro do próprio handleSubmit, na hora exata de montar a
+  // mensagem (pedido em 06/08/2026 -- "a consulta tem que ser na hora
+  // da geração da mensagem", não só confiar no que rodou antes no
+  // onBlur, que pode estar desatualizado ou nem ter disparado a
+  // tempo).
+  async function buscarCadastroExistente(telefoneDigitos: string): Promise<string | null> {
+    if (telefoneDigitos.length < 10) return null
+    try {
+      const res = await fetch(`/api/verificar-cadastro?telefone=${telefoneDigitos}`);
+      const dados = await res.json();
+      return dados?.existe && dados?.idUsuario ? dados.idUsuario : null;
+    } catch {
+      return null; // Silencioso -- servidor confere de novo no envio de qualquer forma.
+    }
+  }
+
   async function verificarCadastroExistente() {
     const digitos = whatsapp.replace(/\D/g, "");
-    if (digitos.length < 10) return;
-
-    try {
-      const res = await fetch(`/api/verificar-cadastro?telefone=${digitos}`);
-      const dados = await res.json();
-      if (dados?.existe && dados?.idUsuario) {
-        setIdExistente(dados.idUsuario);
-      }
-    } catch {
-      // Silencioso -- servidor confere de novo no envio de qualquer forma.
-    }
+    const encontrado = await buscarCadastroExistente(digitos);
+    if (encontrado) setIdExistente(encontrado);
   }
 
   function nomeValido(valor: string) {
@@ -162,16 +168,19 @@ export default function ConviteForm({
       return;
     }
 
-    // Se a pessoa JA tem cadastro (checado no onBlur do telefone,
-    // idExistente), usa o ID REAL dela -- senao gera um novo aqui, no
-    // navegador, antes do window.open() (que tem que rodar de forma
-    // sincrona, dentro do clique de verdade do usuario, senao o
-    // navegador mobile bloqueia o popup). O mesmo ID vai junto no POST
-    // logo abaixo -- se ja existia, o servidor confere de novo e nao
-    // cria linha duplicada (pedido em 03/08/2026).
-    const idParaUsar = idExistente ?? crypto.randomUUID().replace(/-/g, "").slice(0, 8);
-    const loginGerado = idParaUsar.slice(0, 4);
     const telefoneDigitos = whatsapp.replace(/\D/g, "");
+
+    // Consulta FRESCA aqui, na hora exata de montar a mensagem -- não
+    // confia só no idExistente do onBlur (pode estar desatualizado, ou
+    // a pessoa pode ter mudado o número depois do blur sem sair do
+    // campo de novo). Isso significa um await ANTES do window.open()
+    // -- em troca de dado sempre correto na hora da geração da
+    // mensagem, aceita o risco de o navegador mobile bloquear o popup
+    // com mais frequência (era o motivo de antes ser síncrono) --
+    // decisão explícita pedida em 06/08/2026.
+    const idEncontradoAgora = await buscarCadastroExistente(telefoneDigitos);
+    const idParaUsar = idEncontradoAgora ?? idExistente ?? crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+    const loginGerado = idParaUsar.slice(0, 4);
     const primeiroNome = nome.trim().split(" ")[0];
 
     const mensagemAcesso =
