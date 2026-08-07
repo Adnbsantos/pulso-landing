@@ -23,11 +23,6 @@ export default function ConviteForm({
   const [mostrarPolitica, setMostrarPolitica] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
-  // Controla a cobertura visual em cima do widget do Turnstile --
-  // fica true no exato momento em que passa, escondendo o "Sucesso!"
-  // deles atrás de uma indicação nossa, sem o widget sumir do lugar
-  // (pedido em 06/08/2026).
-  const [captchaVerificado, setCaptchaVerificado] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   // Se o telefone digitado já tem cadastro, guarda o ID REAL aqui --
   // usado tanto na mensagem do WhatsApp quanto no envio, em vez de um
@@ -60,16 +55,21 @@ export default function ConviteForm({
       if (window.turnstile && turnstileRef.current && !widgetId.current) {
         widgetId.current = window.turnstile.render(turnstileRef.current, {
           sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
-          // Widget fica visível normalmente -- a cobertura visual (não
-          // o sumiço do elemento) é quem esconde o "Sucesso!" deles,
-          // ver o <div> de overlay logo abaixo, no JSX.
+          // Widget de verdade fica INVISÍVEL -- roda a verificação
+          // real escondida, sem checkbox, sem "Sucesso!", sem UI
+          // nenhuma da Cloudflare aparecendo. No lugar visível (ver
+          // JSX abaixo), mostramos uma réplica estática nossa da
+          // caixinha padrão, que nunca muda -- pra ninguém confundir
+          // "captcha passou" com "cadastro terminou" (pedido em
+          // 06/08/2026, causa raiz: gente via 'Sucesso!' e não
+          // apertava o botão de cadastrar, achando que já tinha
+          // enviado).
+          size: "invisible",
           callback: (token: string) => {
             setTurnstileToken(token);
-            setCaptchaVerificado(true);
           },
           "expired-callback": () => {
             setTurnstileToken("");
-            setCaptchaVerificado(false);
           },
         });
       }
@@ -224,7 +224,6 @@ export default function ConviteForm({
       if (window.turnstile && widgetId.current) {
         window.turnstile.reset(widgetId.current);
         setTurnstileToken("");
-        setCaptchaVerificado(false);
       }
     }
   }
@@ -329,25 +328,18 @@ export default function ConviteForm({
         </div>
       )}
 
-      <div className="relative mb-4 flex justify-center">
-        <div ref={turnstileRef} />
-        {captchaVerificado && (
-          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-white rounded">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#16A34A"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-            <span className="text-sm font-medium text-green-700">Verificado</span>
-          </div>
-        )}
+      {/* Widget de verdade some (size="invisible", ver useEffect acima) --
+          roda a verificação real escondida. Essa caixinha aqui é só uma
+          réplica visual estática nossa, do jeito clássico do Cloudflare
+          -- fica sempre com essa mesma aparência, nunca muda pra
+          "Sucesso!" nem pra nada, mesmo depois da verificação real
+          terminar (pedido em 06/08/2026). */}
+      <div ref={turnstileRef} className="hidden" />
+      <div className="mb-4 flex justify-center">
+        <div className="flex items-center gap-3 border border-gray-300 rounded-md px-4 py-3 bg-gray-50 w-[300px]">
+          <div className="w-5 h-5 border-2 border-gray-400 rounded-sm flex-shrink-0" />
+          <span className="text-sm text-gray-600">Verificação de segurança</span>
+        </div>
       </div>
 
       {erro && <p className="text-red-600 text-sm mb-4">{erro}</p>}
