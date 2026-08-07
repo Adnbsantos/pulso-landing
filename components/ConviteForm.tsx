@@ -55,15 +55,22 @@ export default function ConviteForm({
       if (window.turnstile && turnstileRef.current && !widgetId.current) {
         widgetId.current = window.turnstile.render(turnstileRef.current, {
           sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
-          // "interaction-only" -- o widget fica invisível pra quem
-          // passa direto (a maioria), só aparece se a Cloudflare
-          // realmente precisar de uma verificação interativa. Evita a
-          // confusão de "Sucesso!" aparecer do lado do botão de
-          // enviar, fazendo a pessoa achar que já cadastrou (pedido em
-          // 06/08/2026).
-          appearance: "interaction-only",
-          callback: (token: string) => setTurnstileToken(token),
-          "expired-callback": () => setTurnstileToken(""),
+          // Widget visível normalmente (não "interaction-only") --
+          // pedido em 06/08/2026: não some, só some no exato momento
+          // em que passa, ANTES da pessoa ver o "Sucesso!" aparecer.
+          // Não dá pra editar/remover só esse texto (confirmado pela
+          // própria Cloudflare: só clientes Enterprise podem trocar o
+          // texto, o widget roda num iframe deles, fora do nosso
+          // alcance de CSS) -- essa é a alternativa que a comunidade
+          // deles mesmo recomenda.
+          callback: (token: string) => {
+            setTurnstileToken(token);
+            if (turnstileRef.current) turnstileRef.current.style.display = "none";
+          },
+          "expired-callback": () => {
+            setTurnstileToken("");
+            if (turnstileRef.current) turnstileRef.current.style.display = "";
+          },
         });
       }
     };
@@ -217,6 +224,10 @@ export default function ConviteForm({
       if (window.turnstile && widgetId.current) {
         window.turnstile.reset(widgetId.current);
         setTurnstileToken("");
+        // Volta a mostrar o widget -- ele fica escondido só depois de
+        // passar (ver callback do render acima), precisa reaparecer
+        // se a pessoa for tentar de novo.
+        if (turnstileRef.current) turnstileRef.current.style.display = "";
       }
     }
   }
