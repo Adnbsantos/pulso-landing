@@ -171,6 +171,32 @@ export async function POST(
       });
 
     if (erroBackoffice) {
+      // "23505" = violação de UNIQUE (telefone_whatsapp) -- acontece
+      // quando duas tentativas quase simultâneas passam pela checagem
+      // de duplicidade acima ANTES de qualquer uma ter terminado de
+      // gravar (checagem e gravação não são atômicas). A pessoa que
+      // perde a corrida não tem cadastro nenhum -- em vez de mostrar
+      // erro, busca de novo e reaproveita o que a outra tentativa
+      // acabou de criar, do mesmo jeito que o bloco de duplicidade
+      // acima já faz pra quem chega depois. Achado em 10/08/2026,
+      // caso real: 5 tentativas seguidas, só 1 criou registro.
+      if (erroBackoffice.code === "23505") {
+        const { data: criadoPelaOutraTentativa } = await supabase
+          .from("usuarios_backoffice")
+          .select("id_usuario, slug")
+          .eq("telefone", telefoneNumeros)
+          .maybeSingle();
+
+        if (criadoPelaOutraTentativa) {
+          return NextResponse.json({
+            success: true,
+            slug: criadoPelaOutraTentativa.slug,
+            idUsuario: criadoPelaOutraTentativa.id_usuario,
+            jaExistia: true,
+          });
+        }
+      }
+
       console.error("Erro ao criar usuarios_backoffice:", erroBackoffice);
       // Temporariamente expõe a mensagem real do banco (em vez do texto
       // genérico) pra facilitar o diagnóstico.
