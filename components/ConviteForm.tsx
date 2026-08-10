@@ -126,16 +126,17 @@ export default function ConviteForm({
 
     const telefoneDigitos = whatsapp.replace(/\D/g, "");
 
-    // Consulta FRESCA aqui, na hora exata de montar a mensagem -- não
-    // confia só no idExistente do onBlur (pode estar desatualizado, ou
-    // a pessoa pode ter mudado o número depois do blur sem sair do
-    // campo de novo). Isso significa um await ANTES do window.open()
-    // -- em troca de dado sempre correto na hora da geração da
-    // mensagem, aceita o risco de o navegador mobile bloquear o popup
-    // com mais frequência (era o motivo de antes ser síncrono) --
-    // decisão explícita pedida em 06/08/2026.
-    const idEncontradoAgora = await buscarCadastroExistente(telefoneDigitos);
-    const idParaUsar = idEncontradoAgora ?? idExistente ?? crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+    // window.open() precisa ser a PRIMEIRA coisa depois da validação
+    // síncrona, sem nenhum await antes -- é a única forma confiável de
+    // o navegador (principalmente mobile) não bloquear o popup do
+    // WhatsApp, por não estar mais "colado" no gesto de clique da
+    // pessoa. Usa o idExistente já checado no onBlur (pode estar
+    // levemente desatualizado, mas o servidor confere de novo antes
+    // de gravar de qualquer forma) -- voltado atrás da versão anterior
+    // (que fazia uma consulta fresca ANTES do window.open, gerando
+    // exatamente esse bloqueio). Achado em 10/08/2026: "clica em Quero
+    // participar, vai direto pro final, sem abrir o WhatsApp".
+    const idParaUsar = idExistente ?? crypto.randomUUID().replace(/-/g, "").slice(0, 8);
     const loginGerado = idParaUsar.slice(0, 4);
     const primeiroNome = nome.trim().split(" ")[0];
 
