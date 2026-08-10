@@ -44,35 +44,8 @@ export async function POST(
   try {
     const { slug } = await params;
     const body = await req.json();
-    const { nome, whatsapp, instagram, turnstileToken, idPreGerado, latitude, longitude } = body;
+    const { nome, whatsapp, instagram, idPreGerado, latitude, longitude } = body;
     const supabase = getSupabaseServer();
-
-    if (!turnstileToken) {
-      return NextResponse.json(
-        { error: "Verificação de segurança ausente" },
-        { status: 400 }
-      );
-    }
-
-    const verify = await fetch(
-      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          secret: process.env.TURNSTILE_SECRET_KEY,
-          response: turnstileToken,
-        }),
-      }
-    );
-    const verifyData = await verify.json();
-
-    if (!verifyData.success) {
-      return NextResponse.json(
-        { error: "Falha na verificação de segurança" },
-        { status: 400 }
-      );
-    }
 
     if (!nome || !whatsapp) {
       return NextResponse.json(

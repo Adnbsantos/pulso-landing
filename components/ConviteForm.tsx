@@ -23,7 +23,12 @@ export default function ConviteForm({
   const [mostrarPolitica, setMostrarPolitica] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
-  const [turnstileToken, setTurnstileToken] = useState("");
+  // Verificação "não sou um robô" (Cloudflare Turnstile) removida por
+  // completo -- pedido em 10/08/2026, suspeita forte de que o token
+  // não estava sendo gerado de forma confiável, bloqueando cadastros
+  // de verdade silenciosamente. A caixinha visual estática continua
+  // no layout (ver JSX abaixo), só não depende mais de verificação
+  // real nenhuma.
   // Se o telefone digitado já tem cadastro, guarda o ID REAL aqui --
   // usado tanto na mensagem do WhatsApp quanto no envio, em vez de um
   // ID novo inventado. Checado no onBlur do campo (ver
@@ -40,50 +45,6 @@ export default function ConviteForm({
 
   const turnstileRef = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
-
-  useEffect(() => {
-    const scriptId = "turnstile-script";
-    if (!document.getElementById(scriptId)) {
-      const script = document.createElement("script");
-      script.id = scriptId;
-      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-      script.async = true;
-      document.body.appendChild(script);
-    }
-
-    const renderWidget = () => {
-      if (window.turnstile && turnstileRef.current && !widgetId.current) {
-        widgetId.current = window.turnstile.render(turnstileRef.current, {
-          sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
-          // Widget de verdade fica INVISÍVEL -- roda a verificação
-          // real escondida, sem checkbox, sem "Sucesso!", sem UI
-          // nenhuma da Cloudflare aparecendo. No lugar visível (ver
-          // JSX abaixo), mostramos uma réplica estática nossa da
-          // caixinha padrão, que nunca muda -- pra ninguém confundir
-          // "captcha passou" com "cadastro terminou" (pedido em
-          // 06/08/2026, causa raiz: gente via 'Sucesso!' e não
-          // apertava o botão de cadastrar, achando que já tinha
-          // enviado).
-          size: "invisible",
-          callback: (token: string) => {
-            setTurnstileToken(token);
-          },
-          "expired-callback": () => {
-            setTurnstileToken("");
-          },
-        });
-      }
-    };
-
-    const interval = setInterval(() => {
-      if (window.turnstile) {
-        renderWidget();
-        clearInterval(interval);
-      }
-    }, 300);
-
-    return () => clearInterval(interval);
-  }, []);
 
   function handleInstagramChange(e: React.ChangeEvent<HTMLInputElement>) {
     let value = e.target.value.toLowerCase();
@@ -163,11 +124,6 @@ export default function ConviteForm({
       return;
     }
 
-    if (!turnstileToken) {
-      setErro("Confirme que voce nao e um robo.");
-      return;
-    }
-
     const telefoneDigitos = whatsapp.replace(/\D/g, "");
 
     // Consulta FRESCA aqui, na hora exata de montar a mensagem -- não
@@ -215,7 +171,6 @@ export default function ConviteForm({
         nome,
         whatsapp,
         instagram,
-        turnstileToken,
         idPreGerado: idParaUsar,
         latitude: localizacao?.latitude ?? null,
         longitude: localizacao?.longitude ?? null,
@@ -230,10 +185,6 @@ export default function ConviteForm({
     } else {
       const data = await res.json();
       setErro(data.error || "Erro ao enviar. Tente novamente.");
-      if (window.turnstile && widgetId.current) {
-        window.turnstile.reset(widgetId.current);
-        setTurnstileToken("");
-      }
     }
   }
 
@@ -367,7 +318,7 @@ export default function ConviteForm({
 
       <button
         type="submit"
-        disabled={enviando || !aceite || !turnstileToken}
+        disabled={enviando || !aceite}
         className="w-full bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed text-blue-950 font-bold py-4 rounded-xl flex items-center justify-center gap-2"
       >
         <svg
