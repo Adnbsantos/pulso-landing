@@ -105,7 +105,7 @@ export default function ConviteForm({
     return palavras.length >= 2;
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
     setErro("");
 
@@ -190,7 +190,7 @@ export default function ConviteForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-md w-full max-w-md p-8 mt-6">
+    <div className="bg-white rounded-2xl shadow-md w-full max-w-md p-8 mt-6">
       <label className="block text-left text-blue-950 font-semibold mb-1">Meu nome completo</label>
       <div className="relative mb-4">
         <input
@@ -318,7 +318,8 @@ export default function ConviteForm({
       {erro && <p className="text-red-600 text-sm mb-4">{erro}</p>}
 
       <button
-        type="submit"
+        type="button"
+        onClick={handleSubmit}
         disabled={enviando || !aceite}
         className="w-full bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed text-blue-950 font-bold py-4 rounded-xl flex items-center justify-center gap-2"
       >
@@ -340,6 +341,6 @@ export default function ConviteForm({
         </svg>
         {enviando ? "Enviando..." : "Quero participar"}
       </button>
-    </form>
+    </div>
   );
 }
