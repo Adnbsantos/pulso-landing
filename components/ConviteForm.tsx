@@ -106,24 +106,29 @@ export default function ConviteForm({
   }
 
   async function handleSubmit(e: React.MouseEvent<HTMLButtonElement>) {
+    console.log("[DIAG] handleSubmit chamado");
     e.preventDefault();
     setErro("");
 
     if (!nomeValido(nome)) {
+      console.log("[DIAG] bloqueado: nome invalido", nome);
       setErro("Digite seu nome completo (nome e sobrenome).");
       return;
     }
 
     if (!whatsapp.trim()) {
+      console.log("[DIAG] bloqueado: whatsapp vazio");
       setErro("O WhatsApp e obrigatorio.");
       return;
     }
 
     if (!aceite) {
+      console.log("[DIAG] bloqueado: aceite=false");
       setErro("Voce precisa concordar com a Politica de Privacidade.");
       return;
     }
 
+    console.log("[DIAG] passou nas validacoes, montando mensagem");
     const telefoneDigitos = whatsapp.replace(/\D/g, "");
 
     // window.open() precisa ser a PRIMEIRA coisa depois da validação
@@ -148,15 +153,18 @@ export default function ConviteForm({
       `Continue me falando um pouco de você\n` +
       `https://geracao.pulsodf.com.br/maisvoce/${idParaUsar}`;
 
+    console.log("[DIAG] prestes a chamar window.open");
     // FIXO temporariamente em 556131991965 enquanto o rodizio
     // multi-numero ainda esta em teste -- pra voltar ao carrossel
     // dinamico, troca de volta pra `https://wa.me/${numeroAtendente}?...`.
-    window.open(
+    const novaJanela = window.open(
       `https://wa.me/556131991965?text=${encodeURIComponent(mensagemAcesso)}`,
       "_blank"
     );
+    console.log("[DIAG] window.open retornou:", novaJanela ? "janela aberta" : "BLOQUEADO (null/undefined)");
 
     setEnviando(true);
+    console.log("[DIAG] prestes a capturar GPS");
 
     // Captura o GPS AQUI, na Fase 1 -- pedido em 04/08/2026, pra a RA
     // já nascer real (por localização), em vez de depender só da
@@ -164,7 +172,9 @@ export default function ConviteForm({
     // permissão ou o dispositivo não suportar -- nunca trava o
     // cadastro por causa disso.
     const localizacao = await capturarLocalizacao();
+    console.log("[DIAG] GPS retornou:", localizacao);
 
+    console.log("[DIAG] prestes a fazer o POST");
     const res = await fetch("/api/convidado/" + slug, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
