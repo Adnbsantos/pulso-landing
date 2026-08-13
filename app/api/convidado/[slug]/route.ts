@@ -141,6 +141,7 @@ export async function POST(
         perfil: "Apoiador Base",
         status: "Pendente",
         ra_id: raIdDetectada,
+        origem_cadastro: "landing_publico",
       });
 
     if (erroBackoffice) {
