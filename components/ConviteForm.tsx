@@ -189,15 +189,38 @@ export default function ConviteForm({
     });
 
     setEnviando(true);
-    console.log("[DIAG] prestes a capturar GPS");
 
-    // Captura o GPS AQUI, na Fase 1 -- pedido em 04/08/2026, pra a RA
-    // já nascer real (por localização), em vez de depender só da
-    // pessoa escolher certo na Fase 2. Silencioso se ela negar
-    // permissão ou o dispositivo não suportar -- nunca trava o
-    // cadastro por causa disso.
-    const localizacao = await capturarLocalizacao();
-    console.log("[DIAG] GPS retornou:", localizacao);
+    // CRÍTICO -- achado em 14/08/2026, ao vivo, num cadastro real que
+    // nunca gravou: capturarLocalizacao() tem um timeout interno (via
+    // setTimeout do navegador), mas o navegador PAUSA timers de abas em
+    // segundo plano. Como o window.open acima leva a pessoa pro
+    // WhatsApp, a aba fica em segundo plano -- se ela não voltar, o
+    // timeout do GPS nunca dispara, o antigo `await` aqui ficava
+    // pendurado pra sempre, e o POST abaixo NUNCA era executado (nem
+    // erro, nem log -- silêncio total). Por isso o GPS agora roda
+    // desacoplado: o cadastro principal sai JA, sem esperar nada; se a
+    // localização chegar (mesmo que minutos depois, quando a pessoa
+    // eventualmente voltar pra aba), atualiza separadamente via
+    // /api/atualizar-gps, sem travar ou depender do fluxo principal.
+    console.log("[DIAG] disparando captura de GPS em paralelo (nao bloqueia mais o POST)");
+    capturarLocalizacao()
+      .then((localizacao) => {
+        console.log("[DIAG] GPS retornou (async, pos-POST):", localizacao);
+        if (!localizacao) return;
+        return fetch("/api/atualizar-gps", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          keepalive: true,
+          body: JSON.stringify({
+            idUsuario: idParaUsar,
+            latitude: localizacao.latitude,
+            longitude: localizacao.longitude,
+          }),
+        });
+      })
+      .catch(() => {
+        // Silencioso -- GPS e' sempre opcional, nunca pode gerar erro visivel.
+      });
 
     console.log("[DIAG] prestes a fazer o POST");
     const res = await fetch("/api/convidado/" + slug, {
@@ -208,8 +231,8 @@ export default function ConviteForm({
         whatsapp,
         instagram,
         idPreGerado: idParaUsar,
-        latitude: localizacao?.latitude ?? null,
-        longitude: localizacao?.longitude ?? null,
+        latitude: null,
+        longitude: null,
       }),
     });
 
