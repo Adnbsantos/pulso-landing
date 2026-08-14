@@ -163,6 +163,31 @@ export default function ConviteForm({
     );
     console.log("[DIAG] window.open retornou:", novaJanela ? "janela aberta" : "BLOQUEADO (null/undefined)");
 
+    // Log de auditoria -- registra que essa mensagem foi gerada e aberta
+    // pro WhatsApp, com o link de origem (legado/slug de quem convidou),
+    // ANTES de saber se o POST abaixo vai gravar com sucesso. Objetivo:
+    // permitir cruzar depois quem recebeu a mensagem mas nao entrou no
+    // banco (bug investigado em 14/08/2026). Fogo-e-esquece -- keepalive
+    // garante que o navegador tenta enviar mesmo que a pagina troque de
+    // foco (o WhatsApp abriu em outra aba/app) ou feche logo em seguida.
+    // NUNCA aguardado (sem await) -- nao pode atrasar nada do fluxo
+    // principal nem bloquear em caso de falha.
+    fetch("/api/log-boas-vindas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({
+        idUsuarioGerado: idParaUsar,
+        telefone: telefoneDigitos,
+        nome,
+        slugOrigem: slug,
+        mensagemTexto: mensagemAcesso,
+      }),
+    }).catch(() => {
+      // Silencioso de proposito -- e so auditoria, nunca pode
+      // interromper ou sinalizar erro pro cadastrante.
+    });
+
     setEnviando(true);
     console.log("[DIAG] prestes a capturar GPS");
 
