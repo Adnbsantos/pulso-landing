@@ -12,13 +12,38 @@ type Convidado = {
   agenda_eventos: { titulo: string; local: string | null; inicio: string } | null
 }
 
-async function buscarConvidado(codigo: string): Promise<Convidado | null> {
-  const { data } = await obterSupabaseAdmin()
-    .from('agenda_convidados')
-    .select('evento_id, agenda_eventos(titulo, local, inicio)')
-    .eq('codigo', codigo)
+// Achado em 15/08/2026: link com só o código do convidado ficava
+// órfão sempre que algo mexia na lista de convidados depois (já
+// corrigido na raiz em pulso-crm/app/api/agenda/convidados/route.ts).
+// O link agora tem duas partes -- número do evento (sequencial,
+// legível, agenda_eventos.numero) primeiro, depois o código do
+// convidado -- a busca só bate se o código pertencer AO EVENTO CERTO,
+// não só ao código isolado.
+async function buscarConvidado(numero: string, codigo: string): Promise<Convidado | null> {
+  const numeroNumerico = Number(numero)
+  if (Number.isNaN(numeroNumerico)) return null
+
+  const { data: evento } = await obterSupabaseAdmin()
+    .from('agenda_eventos')
+    .select('id, titulo, local, inicio')
+    .eq('numero', numeroNumerico)
     .maybeSingle()
-  return data as unknown as Convidado | null
+
+  if (!evento) return null
+
+  const { data: convidado } = await obterSupabaseAdmin()
+    .from('agenda_convidados')
+    .select('evento_id')
+    .eq('codigo', codigo)
+    .eq('evento_id', evento.id)
+    .maybeSingle()
+
+  if (!convidado) return null
+
+  return {
+    evento_id: convidado.evento_id,
+    agenda_eventos: { titulo: evento.titulo, local: evento.local, inicio: evento.inicio },
+  }
 }
 
 function formatarHorario(inicioIso: string): string {
@@ -30,10 +55,10 @@ function formatarHorario(inicioIso: string): string {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ numero: string; codigo: string }>
 }): Promise<Metadata> {
-  const { id } = await params
-  const convidado = await buscarConvidado(id)
+  const { numero, codigo } = await params
+  const convidado = await buscarConvidado(numero, codigo)
   const titulo = convidado?.agenda_eventos?.titulo
     ? `Confirmar presença • ${convidado.agenda_eventos.titulo}`
     : 'Confirmar presença'
@@ -52,14 +77,14 @@ export async function generateMetadata({
 export default async function PaginaConfirmacao({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ numero: string; codigo: string }>
 }) {
-  const { id } = await params
-  const convidado = await buscarConvidado(id)
+  const { numero, codigo } = await params
+  const convidado = await buscarConvidado(numero, codigo)
   const evento = convidado?.agenda_eventos
 
-  const linkConfirmar = `${URL_CRM}/api/agenda/confirmar-presenca?codigo=${id}&resposta=confirmado`
-  const linkAusente = `${URL_CRM}/api/agenda/confirmar-presenca?codigo=${id}&resposta=ausente`
+  const linkConfirmar = `${URL_CRM}/api/agenda/confirmar-presenca?numero=${numero}&codigo=${codigo}&resposta=confirmado`
+  const linkAusente = `${URL_CRM}/api/agenda/confirmar-presenca?numero=${numero}&codigo=${codigo}&resposta=ausente`
 
   return (
     <main
