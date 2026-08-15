@@ -14,20 +14,18 @@ type ResultadoBusca = {
   convidadoEncontrado: boolean
 }
 
-// Achado em 15/08/2026: link com só o código do convidado ficava
-// órfão sempre que algo mexia na lista de convidados depois (já
-// corrigido na raiz em pulso-crm/app/api/agenda/convidados/route.ts).
-// O link agora tem duas partes -- número do evento (sequencial,
-// legível, agenda_eventos.numero) primeiro, depois o código do
-// convidado -- a busca só bate se o código pertencer AO EVENTO CERTO,
-// não só ao código isolado.
+// Link em duas partes -- número do evento (sequencial, legível,
+// agenda_eventos.numero) primeiro, depois o LOGIN do convidado (4
+// primeiros dígitos do usuario_id -- o mesmo usado pra entrar no app,
+// em vez de um código aleatório separado) -- pedido em 15/08/2026,
+// mais fácil de reconhecer/testar do que um código de 8 caracteres
+// sem sentido nenhum.
 //
-// Busca em duas etapas, de propósito -- pedido em 15/08/2026: mesmo
-// se o código do convidado não bater com nada (link errado, digitado
-// à mão, etc.), mas o NÚMERO do evento existir, ainda mostra o nome
-// do evento na tela -- em vez do "Não encontramos esse convite"
-// genérico, sem contexto nenhum.
-async function buscarConvidado(numero: string, codigo: string): Promise<ResultadoBusca> {
+// Busca em duas etapas, de propósito: mesmo se o login não bater com
+// nada (link errado, digitado à mão, etc.), mas o NÚMERO do evento
+// existir, ainda mostra o nome do evento na tela -- em vez do "Não
+// encontramos esse convite" genérico, sem contexto nenhum.
+async function buscarConvidado(numero: string, login: string): Promise<ResultadoBusca> {
   const numeroNumerico = Number(numero)
   if (Number.isNaN(numeroNumerico)) return { evento: null, convidadoEncontrado: false }
 
@@ -39,16 +37,19 @@ async function buscarConvidado(numero: string, codigo: string): Promise<Resultad
 
   if (!evento) return { evento: null, convidadoEncontrado: false }
 
-  const { data: convidado } = await obterSupabaseAdmin()
+  // .like() + limit(1) em vez de .maybeSingle() -- colisão de login
+  // entre dois convidados do MESMO evento é rara, mas não impossível;
+  // pega o primeiro em vez de dar erro.
+  const { data: convidados } = await obterSupabaseAdmin()
     .from('agenda_convidados')
     .select('id')
-    .eq('codigo', codigo)
     .eq('evento_id', evento.id)
-    .maybeSingle()
+    .like('usuario_id', `${login}%`)
+    .limit(1)
 
   return {
     evento: { titulo: evento.titulo, local: evento.local, inicio: evento.inicio },
-    convidadoEncontrado: !!convidado,
+    convidadoEncontrado: !!convidados?.[0],
   }
 }
 
@@ -61,10 +62,10 @@ function formatarHorario(inicioIso: string): string {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ numero: string; codigo: string }>
+  params: Promise<{ numero: string; login: string }>
 }): Promise<Metadata> {
-  const { numero, codigo } = await params
-  const resultado = await buscarConvidado(numero, codigo)
+  const { numero, login } = await params
+  const resultado = await buscarConvidado(numero, login)
   const titulo = resultado.evento?.titulo ? `Confirmar presença • ${resultado.evento.titulo}` : 'Confirmar presença'
 
   return {
@@ -81,14 +82,14 @@ export async function generateMetadata({
 export default async function PaginaConfirmacao({
   params,
 }: {
-  params: Promise<{ numero: string; codigo: string }>
+  params: Promise<{ numero: string; login: string }>
 }) {
-  const { numero, codigo } = await params
-  const resultado = await buscarConvidado(numero, codigo)
+  const { numero, login } = await params
+  const resultado = await buscarConvidado(numero, login)
   const { evento, convidadoEncontrado } = resultado
 
-  const linkConfirmar = `${URL_CRM}/api/agenda/confirmar-presenca?numero=${numero}&codigo=${codigo}&resposta=confirmado`
-  const linkAusente = `${URL_CRM}/api/agenda/confirmar-presenca?numero=${numero}&codigo=${codigo}&resposta=ausente`
+  const linkConfirmar = `${URL_CRM}/api/agenda/confirmar-presenca?numero=${numero}&login=${login}&resposta=confirmado`
+  const linkAusente = `${URL_CRM}/api/agenda/confirmar-presenca?numero=${numero}&login=${login}&resposta=ausente`
 
   return (
     <main
