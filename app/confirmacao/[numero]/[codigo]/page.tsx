@@ -7,9 +7,11 @@ function obterSupabaseAdmin() {
 
 const URL_CRM = 'https://crm.pulsodf.com.br'
 
-type Convidado = {
-  evento_id: string
-  agenda_eventos: { titulo: string; local: string | null; inicio: string } | null
+type Evento = { titulo: string; local: string | null; inicio: string }
+
+type ResultadoBusca = {
+  evento: Evento | null
+  convidadoEncontrado: boolean
 }
 
 // Achado em 15/08/2026: link com só o código do convidado ficava
@@ -19,9 +21,15 @@ type Convidado = {
 // legível, agenda_eventos.numero) primeiro, depois o código do
 // convidado -- a busca só bate se o código pertencer AO EVENTO CERTO,
 // não só ao código isolado.
-async function buscarConvidado(numero: string, codigo: string): Promise<Convidado | null> {
+//
+// Busca em duas etapas, de propósito -- pedido em 15/08/2026: mesmo
+// se o código do convidado não bater com nada (link errado, digitado
+// à mão, etc.), mas o NÚMERO do evento existir, ainda mostra o nome
+// do evento na tela -- em vez do "Não encontramos esse convite"
+// genérico, sem contexto nenhum.
+async function buscarConvidado(numero: string, codigo: string): Promise<ResultadoBusca> {
   const numeroNumerico = Number(numero)
-  if (Number.isNaN(numeroNumerico)) return null
+  if (Number.isNaN(numeroNumerico)) return { evento: null, convidadoEncontrado: false }
 
   const { data: evento } = await obterSupabaseAdmin()
     .from('agenda_eventos')
@@ -29,20 +37,18 @@ async function buscarConvidado(numero: string, codigo: string): Promise<Convidad
     .eq('numero', numeroNumerico)
     .maybeSingle()
 
-  if (!evento) return null
+  if (!evento) return { evento: null, convidadoEncontrado: false }
 
   const { data: convidado } = await obterSupabaseAdmin()
     .from('agenda_convidados')
-    .select('evento_id')
+    .select('id')
     .eq('codigo', codigo)
     .eq('evento_id', evento.id)
     .maybeSingle()
 
-  if (!convidado) return null
-
   return {
-    evento_id: convidado.evento_id,
-    agenda_eventos: { titulo: evento.titulo, local: evento.local, inicio: evento.inicio },
+    evento: { titulo: evento.titulo, local: evento.local, inicio: evento.inicio },
+    convidadoEncontrado: !!convidado,
   }
 }
 
@@ -58,10 +64,8 @@ export async function generateMetadata({
   params: Promise<{ numero: string; codigo: string }>
 }): Promise<Metadata> {
   const { numero, codigo } = await params
-  const convidado = await buscarConvidado(numero, codigo)
-  const titulo = convidado?.agenda_eventos?.titulo
-    ? `Confirmar presença • ${convidado.agenda_eventos.titulo}`
-    : 'Confirmar presença'
+  const resultado = await buscarConvidado(numero, codigo)
+  const titulo = resultado.evento?.titulo ? `Confirmar presença • ${resultado.evento.titulo}` : 'Confirmar presença'
 
   return {
     title: titulo,
@@ -80,8 +84,8 @@ export default async function PaginaConfirmacao({
   params: Promise<{ numero: string; codigo: string }>
 }) {
   const { numero, codigo } = await params
-  const convidado = await buscarConvidado(numero, codigo)
-  const evento = convidado?.agenda_eventos
+  const resultado = await buscarConvidado(numero, codigo)
+  const { evento, convidadoEncontrado } = resultado
 
   const linkConfirmar = `${URL_CRM}/api/agenda/confirmar-presenca?numero=${numero}&codigo=${codigo}&resposta=confirmado`
   const linkAusente = `${URL_CRM}/api/agenda/confirmar-presenca?numero=${numero}&codigo=${codigo}&resposta=ausente`
@@ -134,40 +138,50 @@ export default async function PaginaConfirmacao({
                   Local: <strong>{evento.local}</strong>
                 </p>
               )}
+              {!convidadoEncontrado && (
+                <p style={{ margin: '12px 0 0', color: '#B0402C', fontSize: 13 }}>
+                  Não encontramos seu convite específico para este evento. O link pode estar
+                  incompleto ou incorreto.
+                </p>
+              )}
             </div>
           ) : (
             <p style={{ color: '#1B2559', fontSize: 15 }}>Não encontramos esse convite.</p>
           )}
 
-          <a
-            href={linkConfirmar}
-            style={{
-              display: 'block',
-              marginTop: 24,
-              background: '#F0C24A',
-              color: '#1B2559',
-              fontWeight: 800,
-              fontSize: 16,
-              padding: '14px 20px',
-              borderRadius: 999,
-              textDecoration: 'none',
-            }}
-          >
-            Clique aqui para confirmar
-          </a>
+          {convidadoEncontrado && (
+            <>
+              <a
+                href={linkConfirmar}
+                style={{
+                  display: 'block',
+                  marginTop: 24,
+                  background: '#F0C24A',
+                  color: '#1B2559',
+                  fontWeight: 800,
+                  fontSize: 16,
+                  padding: '14px 20px',
+                  borderRadius: 999,
+                  textDecoration: 'none',
+                }}
+              >
+                Clique aqui para confirmar
+              </a>
 
-          <a
-            href={linkAusente}
-            style={{
-              display: 'block',
-              marginTop: 12,
-              color: '#7C8A8E',
-              fontSize: 13,
-              textDecoration: 'underline',
-            }}
-          >
-            Não poderei comparecer
-          </a>
+              <a
+                href={linkAusente}
+                style={{
+                  display: 'block',
+                  marginTop: 12,
+                  color: '#7C8A8E',
+                  fontSize: 13,
+                  textDecoration: 'underline',
+                }}
+              >
+                Não poderei comparecer
+              </a>
+            </>
+          )}
         </div>
       </div>
     </main>
