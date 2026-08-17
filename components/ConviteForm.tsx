@@ -23,6 +23,15 @@ export default function ConviteForm({
   const [mostrarPolitica, setMostrarPolitica] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
+  // Link de fallback pro WhatsApp -- preenchido só se window.open()
+  // voltar bloqueado (null/undefined). Ver handleSubmit: 17/08/2026,
+  // o cadastro passou a gravar ANTES de abrir o WhatsApp (garantia
+  // contra o app trocar de contexto e cortar o JS no meio, matando
+  // até chamadas fetch/sendBeacon que viessem depois) -- o preço disso
+  // é que o clique já não está mais "colado" no gesto do usuário na
+  // hora do window.open, o que pode fazer o navegador bloquear o
+  // pop-up. Esse link cobre esse caso: a pessoa toca manualmente.
+  const [linkWhatsappFallback, setLinkWhatsappFallback] = useState<string | null>(null);
   // Verificação "não sou um robô" (Cloudflare Turnstile) removida por
   // completo -- pedido em 10/08/2026, suspeita forte de que o token
   // não estava sendo gerado de forma confiável, bloqueando cadastros
@@ -131,16 +140,6 @@ export default function ConviteForm({
     console.log("[DIAG] passou nas validacoes, montando mensagem");
     const telefoneDigitos = whatsapp.replace(/\D/g, "");
 
-    // window.open() precisa ser a PRIMEIRA coisa depois da validação
-    // síncrona, sem nenhum await antes -- é a única forma confiável de
-    // o navegador (principalmente mobile) não bloquear o popup do
-    // WhatsApp, por não estar mais "colado" no gesto de clique da
-    // pessoa. Usa o idExistente já checado no onBlur (pode estar
-    // levemente desatualizado, mas o servidor confere de novo antes
-    // de gravar de qualquer forma) -- voltado atrás da versão anterior
-    // (que fazia uma consulta fresca ANTES do window.open, gerando
-    // exatamente esse bloqueio). Achado em 10/08/2026: "clica em Quero
-    // participar, vai direto pro final, sem abrir o WhatsApp".
     const idParaUsar = idExistente ?? crypto.randomUUID().replace(/-/g, "").slice(0, 8);
     const loginGerado = idParaUsar.slice(0, 4);
     const primeiroNome = nome.trim().split(" ")[0];
@@ -153,113 +152,35 @@ export default function ConviteForm({
       `Continue me falando um pouco de você\n` +
       `https://geracao.pulsodf.com.br/maisvoce/${idParaUsar}`;
 
-    console.log("[DIAG] prestes a chamar window.open");
     // FIXO temporariamente em 556131991965 enquanto o rodizio
     // multi-numero ainda esta em teste -- pra voltar ao carrossel
     // dinamico, troca de volta pra `https://wa.me/${numeroAtendente}?...`.
-    const novaJanela = window.open(
-      `https://wa.me/556131991965?text=${encodeURIComponent(mensagemAcesso)}`,
-      "_blank"
-    );
-    console.log("[DIAG] window.open retornou:", novaJanela ? "janela aberta" : "BLOQUEADO (null/undefined)");
-
-    // Log de auditoria -- registra que essa mensagem foi gerada e aberta
-    // pro WhatsApp, com o link de origem (legado/slug de quem convidou),
-    // ANTES de saber se o POST abaixo vai gravar com sucesso. Objetivo:
-    // permitir cruzar depois quem recebeu a mensagem mas nao entrou no
-    // banco (bug investigado em 14/08/2026). Fogo-e-esquece -- keepalive
-    // garante que o navegador tenta enviar mesmo que a pagina troque de
-    // foco (o WhatsApp abriu em outra aba/app) ou feche logo em seguida.
-    // NUNCA aguardado (sem await) -- nao pode atrasar nada do fluxo
-    // principal nem bloquear em caso de falha.
-    fetch("/api/log-boas-vindas", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      keepalive: true,
-      body: JSON.stringify({
-        idUsuarioGerado: idParaUsar,
-        telefone: telefoneDigitos,
-        nome,
-        slugOrigem: slug,
-        mensagemTexto: mensagemAcesso,
-      }),
-    }).catch(() => {
-      // Silencioso de proposito -- e so auditoria, nunca pode
-      // interromper ou sinalizar erro pro cadastrante.
-    });
-
-    // Via de segurança do cadastro em si -- achado em 17/08/2026: um
-    // cadastro sumiu sem deixar rastro nem no log de auditoria acima
-    // (que já roda logo aqui, sem esperar nada), e a pessoa estava
-    // dentro do navegador embutido do PRÓPRIO WhatsApp (não Safari/
-    // Chrome normal). Esse navegador embutido parece destruir a página
-    // por completo ao tentar abrir outro link de WhatsApp por cima --
-    // não só coloca em segundo plano, mata mesmo, o que pode derrubar
-    // até fetch(keepalive:true). sendBeacon existe exatamente pra
-    // sobreviver a esse cenário (é a API que o próprio navegador usa
-    // internamente pra beacons de analytics/telemetria na saída da
-    // página) -- muito mais garantido que fetch nessa situação
-    // específica. Dispara em paralelo com o fetch normal abaixo (que
-    // continua sendo o caminho principal, com tratamento de erro e
-    // spinner); o endpoint já trata dupla submissão do mesmo telefone
-    // sem erro (ver "23505" em app/api/convidado/[slug]/route.ts).
-    try {
-      navigator.sendBeacon(
-        "/api/convidado/" + slug,
-        new Blob(
-          [
-            JSON.stringify({
-              nome,
-              whatsapp,
-              instagram,
-              idPreGerado: idParaUsar,
-              latitude: null,
-              longitude: null,
-            }),
-          ],
-          { type: "application/json" }
-        )
-      );
-    } catch {
-      // Silencioso -- é só uma via extra de segurança, o fetch abaixo
-      // continua sendo o caminho principal.
-    }
+    const linkWhatsapp = `https://wa.me/556131991965?text=${encodeURIComponent(mensagemAcesso)}`;
 
     setEnviando(true);
+    setLinkWhatsappFallback(null);
 
-    // CRÍTICO -- achado em 14/08/2026, ao vivo, num cadastro real que
-    // nunca gravou: capturarLocalizacao() tem um timeout interno (via
-    // setTimeout do navegador), mas o navegador PAUSA timers de abas em
-    // segundo plano. Como o window.open acima leva a pessoa pro
-    // WhatsApp, a aba fica em segundo plano -- se ela não voltar, o
-    // timeout do GPS nunca dispara, o antigo `await` aqui ficava
-    // pendurado pra sempre, e o POST abaixo NUNCA era executado (nem
-    // erro, nem log -- silêncio total). Por isso o GPS agora roda
-    // desacoplado: o cadastro principal sai JA, sem esperar nada; se a
-    // localização chegar (mesmo que minutos depois, quando a pessoa
-    // eventualmente voltar pra aba), atualiza separadamente via
-    // /api/atualizar-gps, sem travar ou depender do fluxo principal.
-    console.log("[DIAG] disparando captura de GPS em paralelo (nao bloqueia mais o POST)");
-    capturarLocalizacao()
-      .then((localizacao) => {
-        console.log("[DIAG] GPS retornou (async, pos-POST):", localizacao);
-        if (!localizacao) return;
-        return fetch("/api/atualizar-gps", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          keepalive: true,
-          body: JSON.stringify({
-            idUsuario: idParaUsar,
-            latitude: localizacao.latitude,
-            longitude: localizacao.longitude,
-          }),
-        });
-      })
-      .catch(() => {
-        // Silencioso -- GPS e' sempre opcional, nunca pode gerar erro visivel.
-      });
-
-    console.log("[DIAG] prestes a fazer o POST");
+    // CRÍTICO -- reordenado em 17/08/2026. Dois cadastros reais
+    // seguidos (Bruna e Esteffannie) sumiram SEM NENHUM RASTRO -- nem
+    // o log de auditoria, que rodava logo após o window.open sem
+    // esperar nada, chegou a disparar. Uma delas estava em Safari
+    // normal (não no navegador embutido do WhatsApp), o que descarta
+    // "aba em segundo plano" como explicação única -- o padrão indica
+    // que window.open() com link wa.me, no iOS com WhatsApp instalado,
+    // pode interromper a execução do script ALI MESMO, cortando
+    // literalmente a próxima linha, não só o que vem depois de a
+    // pessoa sair da aba. Por isso o cadastro agora grava PRIMEIRO,
+    // aguardado, com a página 100% garantidamente viva -- só depois
+    // disso abrimos o WhatsApp.
+    //
+    // Trade-off consciente: isso reintroduz o risco que motivou o
+    // commit 616dccc (window.open síncrono, sem await antes) -- em
+    // navegadores mais restritivos, um window.open que não está mais
+    // "colado" no gesto de clique pode ser bloqueado como pop-up. Por
+    // isso, se novaJanela vier bloqueada, mostramos um botão visível
+    // pra pessoa abrir manualmente (linkWhatsappFallback) -- nunca
+    // fica sem alternativa.
+    console.log("[DIAG] prestes a fazer o POST (agora ANTES do window.open)");
     const res = await fetch("/api/convidado/" + slug, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -275,13 +196,57 @@ export default function ConviteForm({
 
     setEnviando(false);
 
-    if (res.ok) {
-      const data = await res.json();
-      onSuccess(data.idUsuario);
-    } else {
+    if (!res.ok) {
       const data = await res.json();
       setErro(data.error || "Erro ao enviar. Tente novamente.");
+      return;
     }
+
+    const data = await res.json();
+
+    console.log("[DIAG] prestes a chamar window.open");
+    const novaJanela = window.open(linkWhatsapp, "_blank");
+    console.log("[DIAG] window.open retornou:", novaJanela ? "janela aberta" : "BLOQUEADO (null/undefined)");
+    if (!novaJanela || novaJanela.closed) {
+      setLinkWhatsappFallback(linkWhatsapp);
+    }
+
+    // Log de auditoria -- mantido como segunda via, agora só pro
+    // registro de qual mensagem foi mandada e de onde veio o convite
+    // (o cadastro em si já gravou de verdade acima).
+    fetch("/api/log-boas-vindas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({
+        idUsuarioGerado: idParaUsar,
+        telefone: telefoneDigitos,
+        nome,
+        slugOrigem: slug,
+        mensagemTexto: mensagemAcesso,
+      }),
+    }).catch(() => {});
+
+    // GPS continua desacoplado e opcional, como já era desde 14/08.
+    console.log("[DIAG] disparando captura de GPS em paralelo");
+    capturarLocalizacao()
+      .then((localizacao) => {
+        console.log("[DIAG] GPS retornou:", localizacao);
+        if (!localizacao) return;
+        return fetch("/api/atualizar-gps", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          keepalive: true,
+          body: JSON.stringify({
+            idUsuario: idParaUsar,
+            latitude: localizacao.latitude,
+            longitude: localizacao.longitude,
+          }),
+        });
+      })
+      .catch(() => {});
+
+    onSuccess(data.idUsuario);
   }
 
   return (
@@ -411,6 +376,22 @@ export default function ConviteForm({
       </div>
 
       {erro && <p className="text-red-600 text-sm mb-4">{erro}</p>}
+
+      {linkWhatsappFallback && (
+        <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-center">
+          <p className="text-sm text-amber-800 mb-2">
+            Seu cadastro foi salvo! Só falta abrir o WhatsApp pra confirmar.
+          </p>
+          <a
+            href={linkWhatsappFallback}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block bg-green-600 text-white font-semibold text-sm px-4 py-2 rounded-lg"
+          >
+            Abrir WhatsApp
+          </a>
+        </div>
+      )}
 
       <button
         type="button"
