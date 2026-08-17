@@ -188,6 +188,43 @@ export default function ConviteForm({
       // interromper ou sinalizar erro pro cadastrante.
     });
 
+    // Via de segurança do cadastro em si -- achado em 17/08/2026: um
+    // cadastro sumiu sem deixar rastro nem no log de auditoria acima
+    // (que já roda logo aqui, sem esperar nada), e a pessoa estava
+    // dentro do navegador embutido do PRÓPRIO WhatsApp (não Safari/
+    // Chrome normal). Esse navegador embutido parece destruir a página
+    // por completo ao tentar abrir outro link de WhatsApp por cima --
+    // não só coloca em segundo plano, mata mesmo, o que pode derrubar
+    // até fetch(keepalive:true). sendBeacon existe exatamente pra
+    // sobreviver a esse cenário (é a API que o próprio navegador usa
+    // internamente pra beacons de analytics/telemetria na saída da
+    // página) -- muito mais garantido que fetch nessa situação
+    // específica. Dispara em paralelo com o fetch normal abaixo (que
+    // continua sendo o caminho principal, com tratamento de erro e
+    // spinner); o endpoint já trata dupla submissão do mesmo telefone
+    // sem erro (ver "23505" em app/api/convidado/[slug]/route.ts).
+    try {
+      navigator.sendBeacon(
+        "/api/convidado/" + slug,
+        new Blob(
+          [
+            JSON.stringify({
+              nome,
+              whatsapp,
+              instagram,
+              idPreGerado: idParaUsar,
+              latitude: null,
+              longitude: null,
+            }),
+          ],
+          { type: "application/json" }
+        )
+      );
+    } catch {
+      // Silencioso -- é só uma via extra de segurança, o fetch abaixo
+      // continua sendo o caminho principal.
+    }
+
     setEnviando(true);
 
     // CRÍTICO -- achado em 14/08/2026, ao vivo, num cadastro real que
