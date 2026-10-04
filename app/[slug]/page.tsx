@@ -2,6 +2,9 @@ import ConvitePageClient from "@/components/ConvitePageClient";
 import { getSupabaseServer } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { cadastrosSuspensos, MENSAGEM_SUSPENSAO } from "@/lib/suspensao";
+
+export const dynamic = "force-dynamic";
 
 async function getDono(slug: string) {
   const supabase = getSupabaseServer();
@@ -38,7 +41,7 @@ export default async function ConvitePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const dono = await getDono(slug);
+  const [dono, suspenso] = await Promise.all([getDono(slug), cadastrosSuspensos()]);
 
   if (!dono) notFound();
 
@@ -58,7 +61,14 @@ export default async function ConvitePage({
         <p className="text-blue-800 mt-3 text-center font-bold text-lg">Juntos por f&#233;, fam&#237;lia e prop&#243;sito.</p>
       </div>
 
-      <ConvitePageClient slug={slug} nomeConvidante={dono.nome} />
+      {suspenso ? (
+        <div className="bg-white rounded-2xl shadow-md w-full max-w-md p-8 mt-6 text-center">
+          <p className="text-2xl font-bold text-blue-950 mb-2">{MENSAGEM_SUSPENSAO.titulo}</p>
+          <p className="text-base text-gray-700">{MENSAGEM_SUSPENSAO.texto}</p>
+        </div>
+      ) : (
+        <ConvitePageClient slug={slug} nomeConvidante={dono.nome} />
+      )}
 
       <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center w-full max-w-md mt-3 text-blue-900 font-bold">
         <div className="flex items-center justify-center gap-1.5 px-1">
