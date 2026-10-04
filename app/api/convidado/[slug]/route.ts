@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getSupabaseServer } from "@/lib/supabase";
 import { raMaisProxima } from "@/lib/geolocalizacao";
+import { cadastrosSuspensos, MENSAGEM_SUSPENSAO } from "@/lib/suspensao";
 
 // Link de "completar cadastro" (Fase 2 -- virar Mobilizador de verdade),
 // no formato /maisvoce/{id_usuario} -- mesmo padrão usado no botão
@@ -42,6 +43,12 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    if (await cadastrosSuspensos()) {
+      return NextResponse.json(
+        { error: `${MENSAGEM_SUSPENSAO.titulo} ${MENSAGEM_SUSPENSAO.texto}` },
+        { status: 403 }
+      );
+    }
     const { slug } = await params;
     const body = await req.json();
     const { nome, whatsapp, instagram, idPreGerado, latitude, longitude } = body;
